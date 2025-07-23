@@ -95,6 +95,19 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
   const [plannedEvents, setPlannedEvents] = useState<PlannedEvent[]>([]);
   const [previousDuration, setPreviousDuration] = useState('1 hour');
   
+  // Initialize selectedDate with current date
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return `Today, ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  });
+
+  // Initialize selectedTime with current hour rounded to nearest hour
+  const [selectedTime, setSelectedTime] = useState(() => {
+    const now = new Date();
+    const hour = now.getHours();
+    return `${hour > 12 ? hour - 12 : hour}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
+  });
+  
   // For tracking format updates
   const [formattingComplete, setFormattingComplete] = useState(false);
   
@@ -105,7 +118,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
   const [recommendedTimes, setRecommendedTimes] = useState<string[]>([]);
   
   // Get weather data from context
-  const { forecast, currentWeather, isLoading: isLoadingWeather } = useWeatherContext();
+  const { forecast, currentWeather, isLoading: isLoadingWeather, preferredUnits } = useWeatherContext();
   
   // Activity options
   const activities = [
@@ -131,10 +144,12 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
       ];
     }
 
+    const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
+
     // Convert forecast data to the format we need
     return forecast.hourly.slice(0, 6).map((hourData, index) => {
       const time = format(new Date(hourData.date * 1000), 'h a');
-      const temp = Math.round(hourData.temperature.day) + '°';
+      const temp = Math.round(hourData.temperature.day) + '°' + tempUnit;
       
       // Map weather conditions to icons
       let icon = 'sunny-outline';
@@ -157,13 +172,9 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
         humidity: hourData.humidity
       };
     });
-  }, [forecast]);
+  }, [forecast, preferredUnits]); // Add preferredUnits to dependencies
 
   // State for date and time
-  const [selectedDate, setSelectedDate] = useState('Today, Feb 15');
-  const [selectedTime, setSelectedTime] = useState('4:00 PM');
-
-  // Add state for selected date and time in the modal
   const [selectedDateIndex, setSelectedDateIndex] = useState(0);
   const [selectedHour, setSelectedHour] = useState(4);
   const [selectedMinute, setSelectedMinute] = useState(0);
@@ -395,11 +406,12 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
       const temp = Math.round(hourlyData.temperature.day);
       const rainChance = Math.round((hourlyData.pop || 0) * 100);
       const wind = Math.round(hourlyData.windSpeed);
+      const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
       
       // Create a prompt for Gemini API
       const prompt = `You are Skylar, a weather assistant. A user is planning ${activityName} ${eventDescription ? `(${eventDescription})` : ''} 
         on ${selectedDate} at ${selectedTime}. 
-        The weather forecast for that time is: ${temp}°C, ${weatherDesc}, ${rainChance}% chance of rain, wind speed of ${wind} km/h.
+        The weather forecast for that time is: ${temp}°${tempUnit}, ${weatherDesc}, ${rainChance}% chance of rain, wind speed of ${wind} ${preferredUnits === 'imperial' ? 'mph' : 'km/h'}.
         
         Should they reschedule this event due to weather concerns? If yes, why?
         If they should reschedule, suggest ${betterTimes.length > 0 ? 'one of these better times: ' + betterTimes.join(', ') : 'a better time window'}.
@@ -410,7 +422,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
         const response = await generateResponse(prompt, currentWeather);
         setWeatherRecommendation(response.text);
       } else {
-        setWeatherRecommendation(`Based on the forecast (${weatherDesc}, ${temp}°C, ${rainChance}% chance of rain), 
+        setWeatherRecommendation(`Based on the forecast (${weatherDesc}, ${temp}°${tempUnit}, ${rainChance}% chance of rain), 
           ${rainChance > 30 ? 'you might want to reschedule your ' + activityName : activityName + ' conditions look good'}. 
           ${betterTimes.length > 0 ? 'Consider: ' + betterTimes[0] : ''}`);
       }
@@ -481,37 +493,56 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
     setShowCustomTime(false);
   };
 
-  // Delete a planned event
+  // Add state for delete confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+
+  // Update the delete handler
   const handleDeleteEvent = (id: string) => {
-    setPlannedEvents(plannedEvents.filter(event => event.id !== id));
+    setEventToDelete(id);
+    setShowDeleteConfirm(true);
   };
 
-  // Calendar dates
-  const calendarDates = [
-    { day: 'Today', date: '15', month: 'Feb' },
-    { day: 'Tomorrow', date: '16', month: 'Feb' },
-    { day: 'Friday', date: '17', month: 'Feb' },
-    { day: 'Saturday', date: '18', month: 'Feb' },
-    { day: 'Sunday', date: '19', month: 'Feb' },
-  ];
-  
-  // Time slots
-  const timeSlots = [
-    { time: '9:00 AM', selected: false },
-    { time: '10:00 AM', selected: false },
-    { time: '11:00 AM', selected: false },
-    { time: '12:00 PM', selected: false },
-    { time: '1:00 PM', selected: false },
-    { time: '2:00 PM', selected: false },
-    { time: '3:00 PM', selected: false },
-    { time: '4:00 PM', selected: true },
-    { time: '5:00 PM', selected: false },
-    { time: '6:00 PM', selected: false },
-    { time: '7:00 PM', selected: false },
-    { time: '8:00 PM', selected: false },
-  ];
+  // Add confirm delete handler
+  const confirmDelete = () => {
+    if (eventToDelete) {
+      setPlannedEvents(plannedEvents.filter(event => event.id !== eventToDelete));
+      setEventToDelete(null);
+    }
+    setShowDeleteConfirm(false);
+  };
 
-  // Handle date selection
+  // Add cancel delete handler
+  const cancelDelete = () => {
+    setEventToDelete(null);
+    setShowDeleteConfirm(false);
+  };
+
+  // Generate dynamic calendar dates based on current date and available forecast
+  const calendarDates = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Get number of days we have forecast data for
+    const forecastDays = forecast?.daily?.length || 5;
+
+    for (let i = 0; i < forecastDays; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      dates.push({
+        day: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : daysOfWeek[date.getDay()],
+        date: date.getDate().toString(),
+        month: months[date.getMonth()],
+        fullDate: date // Store full date object for comparison
+      });
+    }
+    return dates;
+  }, [forecast]);
+
+  // Handle date selection with proper formatting
   const handleDateSelect = (index: number) => {
     setSelectedDateIndex(index);
     const selectedDate = calendarDates[index];
@@ -569,6 +600,56 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
       setFormattingComplete(true);
     }
   }, [plannedEvents, formattingComplete]);
+
+  // Add this helper function to get hourly forecast for selected date
+  const getHourlyForecastForDate = (selectedDateObj: Date) => {
+    if (!forecast?.hourly) return [];
+
+    const startOfDay = new Date(selectedDateObj);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(selectedDateObj);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    return forecast.hourly.filter(hour => {
+      const hourDate = new Date(hour.date * 1000);
+      return hourDate >= startOfDay && hourDate <= endOfDay;
+    });
+  };
+
+  // Helper function to get weather icon name
+  const getWeatherIconName = (iconCode: string): string => {
+    if (iconCode.includes('01')) return 'sunny-outline';
+    if (iconCode.includes('02')) return 'partly-sunny-outline';
+    if (iconCode.includes('03') || iconCode.includes('04')) return 'cloudy-outline';
+    if (iconCode.includes('09') || iconCode.includes('10')) return 'rainy-outline';
+    if (iconCode.includes('11')) return 'thunderstorm-outline';
+    if (iconCode.includes('13')) return 'snow-outline';
+    if (iconCode.includes('50')) return 'cloud-outline';
+    return 'cloudy-outline';
+  };
+
+  // Update the forecast data memo to use selected date
+  const hourlyForecastData = useMemo(() => {
+    const selectedDateObj = calendarDates[selectedDateIndex]?.fullDate;
+    if (!selectedDateObj) return [];
+
+    const hourlyData = getHourlyForecastForDate(selectedDateObj);
+    
+    return hourlyData.map(hour => {
+      const hourDate = new Date(hour.date * 1000);
+      return {
+        id: hour.date.toString(),
+        time: format(hourDate, 'h a'),
+        temp: Math.round(hour.temperature.day) + '°',
+        iconName: getWeatherIconName(hour.weather.icon), // Changed to use the iconName property
+        condition: hour.weather.description,
+        pop: hour.pop || 0,
+        wind: hour.windSpeed,
+        humidity: hour.humidity
+      };
+    });
+  }, [forecast, selectedDateIndex, calendarDates]);
 
   return (
     <View style={styles.safeArea}>
@@ -714,21 +795,41 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                   <Ionicons name="sunny" size={adjust(16)} color="#FFD700" />
                   <Text style={styles.forecastTitle}>Weather Forecast</Text>
                 </View>
-                <TouchableOpacity onPress={handleViewDetails}>
-                  <Text style={styles.viewDetailsText}>View Details</Text>
-                </TouchableOpacity>
               </View>
 
-              {/* Hourly forecast */}
-              <View style={styles.hourlyForecast}>
-                {forecastData.map((item) => (
-                  <View key={item.id} style={styles.forecastItem}>
-                    <Text style={styles.forecastTime}>{item.time}</Text>
-                    <Ionicons name={item.icon} size={adjust(16)} color={item.time === '2 PM' ? '#FFD700' : '#6e7689'} />
-                    <Text style={styles.forecastTemp}>{item.temp}</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.hourlyForecastScroll}
+              >
+                {hourlyForecastData.length > 0 ? (
+                  hourlyForecastData.map((item) => (
+                    <View key={item.id} style={styles.forecastItem}>
+                      <Text style={styles.forecastTime}>{item.time}</Text>
+                      <Ionicons 
+                        name={item.iconName}
+                        size={adjust(18)}
+                        color="#4361EE"
+                      />
+                      <Text style={styles.forecastTemp}>{item.temp}</Text>
+                      <Text style={styles.forecastCondition} numberOfLines={1}>
+                        {item.condition}
+                      </Text>
+                      {item.pop > 0 && (
+                        <Text style={styles.forecastRain}>
+                          {Math.round(item.pop * 100)}%
+                        </Text>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.noForecastContainer}>
+                    <Text style={styles.noForecastText}>
+                      No forecast data available
+                    </Text>
                   </View>
-                ))}
-              </View>
+                )}
+              </ScrollView>
             </View>
 
             {/* Confirm button inside the card */}
@@ -829,7 +930,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                           <Text
                             style={[
                               styles.dateItemDay,
-                              selectedDateIndex === index && { color: '#fff' },
+                              selectedDateIndex === index && styles.selectedDateText,
                             ]}
                           >
                             {date.day}
@@ -837,7 +938,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                           <Text
                             style={[
                               styles.dateItemDate,
-                              selectedDateIndex === index && { color: '#fff' },
+                              selectedDateIndex === index && styles.selectedDateText,
                             ]}
                           >
                             {date.date}
@@ -845,7 +946,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                           <Text
                             style={[
                               styles.dateItemMonth,
-                              selectedDateIndex === index && { color: '#fff' },
+                              selectedDateIndex === index && styles.selectedDateText,
                             ]}
                           >
                             {date.month}
@@ -1044,6 +1145,43 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={deleteModalStyles.modal}>
+            <View style={deleteModalStyles.header}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={adjust(24)} color="#FF6B6B" />
+              <Text style={deleteModalStyles.title}>Delete Event</Text>
+            </View>
+            
+            <Text style={deleteModalStyles.message}>
+              Are you sure you want to delete this event?
+            </Text>
+            
+            <View style={deleteModalStyles.buttonsContainer}>
+              <TouchableOpacity 
+                style={[deleteModalStyles.button, deleteModalStyles.cancelButton]} 
+                onPress={cancelDelete}
+              >
+                <Text style={deleteModalStyles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[deleteModalStyles.button, deleteModalStyles.deleteButton]} 
+                onPress={confirmDelete}
+              >
+                <Text style={deleteModalStyles.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1058,221 +1196,206 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: adjust(12), // Match HomeScreen
+    paddingHorizontal: adjust(12),
     paddingBottom: adjust(16),
   },
   header: {
-    marginTop: adjust(12), // Match HomeScreen
-    marginBottom: adjust(12), // Match HomeScreen
+    marginTop: adjust(12),
+    marginBottom: adjust(12),
   },
   title: {
-    fontSize: adjust(16), // Reduced like HomeScreen
+    fontSize: adjust(16),
     fontWeight: '600',
     color: '#333',
-    marginBottom: adjust(4), // Match HomeScreen
+    marginBottom: adjust(4),
   },
   subtitle: {
-    fontSize: adjust(12), 
+    fontSize: adjust(12),
     color: '#666',
     marginTop: adjust(2),
   },
   activityListContainer: {
-    marginBottom: adjust(12), // Match HomeScreen card spacing
+    marginBottom: adjust(12),
   },
   activityList: {
-    paddingVertical: adjust(6), // Reduced like HomeScreen
-    paddingHorizontal: adjust(12), // Match HomeScreen padding
+    paddingVertical: adjust(6),
+    paddingHorizontal: adjust(12),
   },
   activityItem: {
-    backgroundColor: '#FFD859', // Keep original color
-    borderRadius: adjust(12), // Match HomeScreen card radius
-    paddingVertical: adjust(8), // Match HomeScreen button padding
-    paddingHorizontal: adjust(12), // Match HomeScreen
-    marginRight: adjust(8), // Match HomeScreen
+    backgroundColor: '#FFD859',
+    borderRadius: adjust(12),
+    paddingVertical: adjust(8),
+    paddingHorizontal: adjust(12),
+    marginRight: adjust(8),
     flexDirection: 'row',
     alignItems: 'center',
   },
   selectedActivityItem: {
-    backgroundColor: '#FFB319', // Keep original color
+    backgroundColor: '#FFB319',
   },
   activityIconContainer: {
-    marginRight: adjust(6), // Match HomeScreen
+    marginRight: adjust(6),
   },
   activityName: {
-    fontSize: adjust(12), // Match HomeScreen cardTitle
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
   },
   planningCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Match HomeScreen
-    padding: adjust(12), // Match HomeScreen card padding
-    marginBottom: adjust(12), // Match HomeScreen card spacing
+    borderRadius: adjust(12),
+    padding: adjust(12),
+    marginBottom: adjust(12),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Match HomeScreen
-    shadowOpacity: 0.08, // Match HomeScreen
-    shadowRadius: 3, // Match HomeScreen
-    elevation: 2, // Match HomeScreen
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   inputLabel: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '600',
     color: '#333',
-    marginBottom: adjust(6), // Match HomeScreen
+    marginBottom: adjust(6),
   },
   eventInput: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: adjust(8), // Match HomeScreen button radius
-    padding: adjust(10), // Match HomeScreen
-    fontSize: adjust(12), // Match HomeScreen
+    borderRadius: adjust(8),
+    padding: adjust(10),
+    fontSize: adjust(12),
     color: '#333',
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   dateTimeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   dateTimeButtonText: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     color: '#4361EE',
     fontWeight: '500',
-    marginLeft: adjust(6), // Match HomeScreen
+    marginLeft: adjust(6),
   },
   dateTimeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   dateContainer: {
     flex: 1,
-    marginRight: adjust(6), // Match HomeScreen
+    marginRight: adjust(6),
   },
   timeContainer: {
     flex: 1,
-    marginLeft: adjust(6), // Match HomeScreen
+    marginLeft: adjust(6),
   },
   dateTimeLabel: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#666',
-    marginBottom: adjust(4), // Match HomeScreen
+    marginBottom: adjust(4),
   },
   dateTimeValue: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
   },
   durationLabel: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '600',
     color: '#333',
-    marginBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(8),
   },
   durationOptions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   durationButton: {
     flex: 1,
     backgroundColor: '#f2f2f2',
-    borderRadius: adjust(8), // Match HomeScreen button radius
-    paddingVertical: adjust(8), // Match HomeScreen
-    paddingHorizontal: adjust(8), // Match HomeScreen
-    marginRight: adjust(8), // Match HomeScreen
+    borderRadius: adjust(8),
+    paddingVertical: adjust(8),
+    paddingHorizontal: adjust(8),
+    marginRight: adjust(8),
     alignItems: 'center',
   },
   selectedDurationButton: {
     backgroundColor: '#4361EE',
   },
   durationButtonText: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#666',
   },
   selectedDurationText: {
     color: '#fff',
     fontWeight: '500',
   },
+  // Weather forecast section styles
   forecastSection: {
-    marginBottom: adjust(12), // Match HomeScreen
+    marginVertical: adjust(12),
   },
   forecastHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: adjust(10), // Match HomeScreen
+    marginBottom: adjust(10),
+    paddingHorizontal: adjust(4),
   },
   forecastTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   forecastTitle: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(13),
     fontWeight: '600',
     color: '#333',
-    marginLeft: adjust(6), // Match HomeScreen
+    marginLeft: adjust(6),
   },
-  viewDetailsText: {
-    fontSize: adjust(11), // Match HomeScreen
-    color: '#4361EE',
-  },
-  hourlyForecast: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  hourlyForecastScroll: {
+    paddingVertical: adjust(6),
+    paddingHorizontal: adjust(4),
   },
   forecastItem: {
     alignItems: 'center',
-    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    borderRadius: adjust(12),
+    padding: adjust(8),
+    marginRight: adjust(8),
+    minWidth: adjust(80),
   },
   forecastTime: {
-    fontSize: adjust(11), // Match HomeScreen
-    color: '#666',
-    marginBottom: adjust(4), // Match HomeScreen
+    fontSize: adjust(12),
+    color: '#333',
+    fontWeight: '500',
+    marginBottom: adjust(4),
   },
   forecastTemp: {
-    fontSize: adjust(12), // Match HomeScreen
-    fontWeight: '500',
-    color: '#333',
-    marginTop: adjust(4), // Match HomeScreen
-  },
-  assistantCard: {
-    backgroundColor: '#517FE0',
-    borderRadius: adjust(12), // Match HomeScreen
-    padding: adjust(12), // Match HomeScreen
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: adjust(10), // Match HomeScreen
-    marginBottom: adjust(12), // Match HomeScreen
-  },
-  assistantIconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: adjust(16), // Match HomeScreen
-    width: adjust(32), // Match HomeScreen
-    height: adjust(32), // Match HomeScreen
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: adjust(10), // Match HomeScreen
-  },
-  assistantText: {
-    color: '#fff',
-    fontSize: adjust(12), // Match HomeScreen
-    flex: 1,
-    lineHeight: adjust(16), // Match HomeScreen
-  },
-  checkButton: {
-    backgroundColor: '#FFD859',
-    borderRadius: adjust(15),
-    paddingVertical: adjust(14),
-    alignItems: 'center',
-    marginBottom: adjust(20),
-  },
-  checkButtonText: {
-    color: '#333',
-    fontSize: adjust(15),
+    fontSize: adjust(16),
     fontWeight: '600',
+    color: '#333',
+    marginVertical: adjust(4),
   },
-  // Modal styles - match HomeScreen modal styles
+  forecastCondition: {
+    fontSize: adjust(10),
+    color: '#666',
+    textAlign: 'center',
+  },
+  forecastRain: {
+    fontSize: adjust(10),
+    color: '#4361EE',
+    marginTop: adjust(2),
+  },
+  noForecastContainer: {
+    padding: adjust(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noForecastText: {
+    fontSize: adjust(11),
+    color: '#666',
+    textAlign: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1281,20 +1404,20 @@ const styles = StyleSheet.create({
   },
   calendarModal: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Match HomeScreen
+    borderRadius: adjust(12),
     width: '90%',
-    padding: adjust(16), // Match HomeScreen
-    maxWidth: adjust(320), // Keep a reasonable size
+    padding: adjust(16),
+    maxWidth: adjust(320),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Match HomeScreen
-    shadowOpacity: 0.2, // Match HomeScreen
-    shadowRadius: 3, // Match HomeScreen
-    elevation: 3, // Match HomeScreen
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   customTimeModal: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Match HomeScreen
-    padding: adjust(16), // Match HomeScreen
+    borderRadius: adjust(12),
+    padding: adjust(16),
     width: '90%',
     maxWidth: adjust(320),
   },
@@ -1302,13 +1425,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
     paddingBottom: adjust(10),
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   modalTitle: {
-    fontSize: adjust(14), // Match HomeScreen
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
   },
@@ -1316,15 +1439,15 @@ const styles = StyleSheet.create({
     paddingVertical: adjust(10),
   },
   closeButton: {
-    width: adjust(24), // Match HomeScreen
-    height: adjust(24), // Match HomeScreen
-    borderRadius: adjust(12), // Match HomeScreen
+    width: adjust(24),
+    height: adjust(24),
+    borderRadius: adjust(12),
     backgroundColor: '#f1f1f1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
-    fontSize: adjust(14), // Match HomeScreen
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
   },
@@ -1349,74 +1472,74 @@ const styles = StyleSheet.create({
     backgroundColor: '#4361EE',
   },
   dateItemDay: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '500',
   },
   dateItemDate: {
-    fontSize: adjust(14), // Match HomeScreen
+    fontSize: adjust(14),
     fontWeight: '600',
-    marginVertical: adjust(2), // Match HomeScreen
+    marginVertical: adjust(2),
   },
   dateItemMonth: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#666',
   },
   selectedDateText: {
     color: '#fff',
   },
   timeSection: {
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   timeSelector: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: adjust(12), // Match HomeScreen
+    marginVertical: adjust(12),
   },
   timeSelectorUnit: {
     alignItems: 'center',
-    marginHorizontal: adjust(8), // Match HomeScreen
+    marginHorizontal: adjust(8),
   },
   timeAdjustButton: {
-    width: adjust(36), // Match HomeScreen
-    height: adjust(36), // Match HomeScreen
-    borderRadius: adjust(18), // Match HomeScreen
+    width: adjust(36),
+    height: adjust(36),
+    borderRadius: adjust(18),
     backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: adjust(4), // Match HomeScreen
+    marginVertical: adjust(4),
   },
   timeValue: {
-    fontSize: adjust(20), // Reduced from 24
+    fontSize: adjust(20),
     fontWeight: '600',
     color: '#333',
-    marginVertical: adjust(4), // Match HomeScreen
-    minWidth: adjust(36), // Match HomeScreen
+    marginVertical: adjust(4),
+    minWidth: adjust(36),
     textAlign: 'center',
   },
   timeColon: {
-    fontSize: adjust(20), // Reduced from 24
+    fontSize: adjust(20),
     fontWeight: '600',
     color: '#333',
   },
   ampmSelector: {
     flexDirection: 'column',
-    marginLeft: adjust(16), // Match HomeScreen
+    marginLeft: adjust(16),
   },
   ampmButton: {
-    width: adjust(45), // Reduced 
-    paddingVertical: adjust(6), // Match HomeScreen
+    width: adjust(45),
+    paddingVertical: adjust(6),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: adjust(8), // Match HomeScreen
+    borderRadius: adjust(8),
     backgroundColor: '#f0f0f0',
-    marginVertical: adjust(4), // Match HomeScreen
+    marginVertical: adjust(4),
   },
   selectedAmpmButton: {
     backgroundColor: '#4361EE',
   },
   ampmButtonText: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
   },
@@ -1425,29 +1548,29 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#4361EE',
-    borderRadius: adjust(8), // Match HomeScreen
-    paddingVertical: adjust(8), // Match HomeScreen
+    borderRadius: adjust(8),
+    paddingVertical: adjust(8),
     alignItems: 'center',
-    marginTop: adjust(12), // Match HomeScreen
+    marginTop: adjust(12),
   },
   confirmButtonText: {
     color: '#fff',
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     fontWeight: '600',
   },
-  // Custom time picker styles
+  
   customTimeContent: {
-    marginBottom: adjust(12), // Match HomeScreen
+    marginBottom: adjust(12),
   },
   customTimeLabel: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     color: '#666',
-    marginBottom: adjust(6), // Match HomeScreen
+    marginBottom: adjust(6),
   },
   customTimeInputRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(8),
   },
   customTimeInputContainer: {
     flex: 1,
@@ -1457,16 +1580,16 @@ const styles = StyleSheet.create({
   customTimeInput: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: adjust(8), // Match HomeScreen
-    padding: adjust(8), // Match HomeScreen
-    fontSize: adjust(12), // Match HomeScreen
+    borderRadius: adjust(8),
+    padding: adjust(8),
+    fontSize: adjust(12),
     color: '#333',
     width: '100%',
   },
   customTimeUnit: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#666',
-    marginLeft: adjust(4), // Match HomeScreen
+    marginLeft: adjust(4),
   },
   customTimeSeparator: {
     width: adjust(10),
@@ -1476,43 +1599,43 @@ const styles = StyleSheet.create({
     fontSize: adjust(12),
     color: '#666',
   },
-  // Planned events section
+  
   plannedEventsSection: {
-    marginTop: adjust(8), // Match HomeScreen
-    marginBottom: adjust(12), // Match HomeScreen
+    marginTop: adjust(8),
+    marginBottom: adjust(12),
   },
   sectionTitleText: {
-    fontSize: adjust(14), // Match HomeScreen
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
-    marginBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(8),
   },
   plannedEventCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Match HomeScreen
-    padding: adjust(12), // Match HomeScreen
-    marginBottom: adjust(10), // Match HomeScreen
+    borderRadius: adjust(12),
+    padding: adjust(12),
+    marginBottom: adjust(10),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Match HomeScreen
-    shadowOpacity: 0.08, // Match HomeScreen
-    shadowRadius: 3, // Match HomeScreen
-    elevation: 2, // Match HomeScreen
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   plannedEventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: adjust(6), // Match HomeScreen
+    marginBottom: adjust(6),
   },
   plannedEventActivity: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '600',
     color: '#333',
   },
   plannedEventDesc: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#666',
-    marginBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(8),
   },
   plannedEventDetails: {
     flexDirection: 'column',
@@ -1520,55 +1643,55 @@ const styles = StyleSheet.create({
   plannedEventDetailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: adjust(4), // Match HomeScreen
+    marginTop: adjust(4),
   },
   plannedEventDetail: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: adjust(8), // Match HomeScreen
+    marginRight: adjust(8),
     flexShrink: 1,
   },
   plannedEventDetailText: {
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     color: '#333',
-    marginLeft: adjust(4), // Match HomeScreen
+    marginLeft: adjust(4),
     flexShrink: 1,
   },
   confirmEventButton: {
     backgroundColor: '#4361EE',
-    borderRadius: adjust(8), // Match HomeScreen
-    paddingVertical: adjust(8), // Match HomeScreen
+    borderRadius: adjust(8),
+    paddingVertical: adjust(8),
     alignItems: 'center',
-    marginTop: adjust(12), // Match HomeScreen
+    marginTop: adjust(12),
   },
   confirmEventButtonText: {
     color: '#fff',
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     fontWeight: '600',
   },
   weatherRecommendationModal: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Match HomeScreen
-    padding: adjust(16), // Match HomeScreen
+    borderRadius: adjust(12),
+    padding: adjust(16),
     width: '90%',
     maxWidth: adjust(320),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Match HomeScreen
-    shadowOpacity: 0.2, // Match HomeScreen
-    shadowRadius: 3, // Match HomeScreen
-    elevation: 3, // Match HomeScreen
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   weatherRecommendationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: adjust(12), // Match HomeScreen
-    paddingBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(12),
+    paddingBottom: adjust(8),
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   weatherRecommendationTitle: {
-    fontSize: adjust(14), // Match HomeScreen
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
   },
@@ -1576,71 +1699,156 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: adjust(16), // Match HomeScreen
+    padding: adjust(16),
   },
   loadingText: {
     color: '#333',
-    fontSize: adjust(12), // Match HomeScreen
-    marginTop: adjust(8), // Match HomeScreen
+    fontSize: adjust(12),
+    marginTop: adjust(8),
   },
   weatherRecommendationContent: {
     flex: 1,
   },
   weatherRecommendationText: {
     color: '#333',
-    fontSize: adjust(12), // Match HomeScreen
-    marginBottom: adjust(8), // Match HomeScreen
-    lineHeight: adjust(16), // Match HomeScreen
+    fontSize: adjust(12),
+    marginBottom: adjust(8),
+    lineHeight: adjust(16),
   },
   betterTimesContainer: {
-    marginTop: adjust(8), // Match HomeScreen
+    marginTop: adjust(8),
   },
   betterTimesTitle: {
-    fontSize: adjust(12), // Match HomeScreen
+    fontSize: adjust(12),
     fontWeight: '600',
     color: '#333',
-    marginBottom: adjust(8), // Match HomeScreen
+    marginBottom: adjust(8),
   },
   betterTimeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: adjust(4), // Match HomeScreen
+    marginBottom: adjust(4),
   },
   betterTimeText: {
     color: '#333',
-    fontSize: adjust(11), // Match HomeScreen
-    marginLeft: adjust(4), // Match HomeScreen
+    fontSize: adjust(11),
+    marginLeft: adjust(4),
   },
   closeRecommendationButton: {
     backgroundColor: '#4361EE',
-    borderRadius: adjust(8), // Match HomeScreen
-    paddingVertical: adjust(8), // Match HomeScreen
+    borderRadius: adjust(8),
+    paddingVertical: adjust(8),
     alignItems: 'center',
-    marginTop: adjust(12), // Match HomeScreen
+    marginTop: adjust(12),
   },
   closeRecommendationButtonText: {
     color: '#fff',
-    fontSize: adjust(11), // Match HomeScreen
+    fontSize: adjust(11),
     fontWeight: '600',
   },
-  deleteButton: {
-    width: adjust(24), // Match HomeScreen
-    height: adjust(24), // Match HomeScreen
-    borderRadius: adjust(12), // Match HomeScreen
-    backgroundColor: '#f1f1f1',
+  assistantCard: {
+    backgroundColor: '#517FE0',
+    borderRadius: adjust(12),
+    padding: adjust(12),
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: adjust(10),
+    marginBottom: adjust(12),
   },
-  modalCloseButton: {
-    width: adjust(28), // Match HomeScreen
-    height: adjust(28), // Match HomeScreen
-    borderRadius: adjust(14), // Match HomeScreen
-    backgroundColor: '#f1f1f1',
-    alignItems: 'center',
+  assistantIconContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: adjust(16),
+    width: adjust(32),
+    height: adjust(32),
     justifyContent: 'center',
-    position: 'absolute',
-    top: adjust(12), // Match HomeScreen
-    right: adjust(12), // Match HomeScreen
+    alignItems: 'center',
+    marginRight: adjust(10),
+  },
+  assistantText: {
+    color: '#fff',
+    fontSize: adjust(12),
+    flex: 1,
+    lineHeight: adjust(16),
+  },
+  checkButton: {
+    backgroundColor: '#FFD859',
+    borderRadius: adjust(15),
+    paddingVertical: adjust(14),
+    alignItems: 'center',
+    marginBottom: adjust(20),
+  },
+  checkButtonText: {
+    color: '#333',
+    fontSize: adjust(15),
+    fontWeight: '600',
+  },
+});
+
+// Separate styles for delete confirmation modal
+const deleteModalStyles = StyleSheet.create({
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: adjust(12),
+    padding: adjust(16),
+    width: '85%',
+    maxWidth: adjust(320),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: adjust(12),
+    width: '100%',
+  },
+  title: {
+    fontSize: adjust(16),
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: adjust(8),
+  },
+  message: {
+    fontSize: adjust(14),
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: adjust(16),
+    lineHeight: adjust(20),
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: adjust(8),
+  },
+  button: {
+    flex: 1,
+    paddingVertical: adjust(10),
+    borderRadius: adjust(8),
+    alignItems: 'center',
+    marginHorizontal: adjust(8),
+  },
+  cancelButton: {
+    backgroundColor: '#f1f1f1',
+  },
+  deleteButton: {
+    backgroundColor: '#FF6B6B',
+  },
+  cancelText: {
+    color: '#333',
+    fontSize: adjust(14),
+    fontWeight: '500',
+  },
+  deleteText: {
+    color: '#fff',
+    fontSize: adjust(14),
+    fontWeight: '500',
   },
 });
 

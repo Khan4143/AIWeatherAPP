@@ -22,6 +22,14 @@ export type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
+const defaultTabBarStyle = {
+  height: adjust(60),
+  paddingTop: adjust(5),
+  backgroundColor: '#fff',
+  borderTopWidth: 1,
+  borderTopColor: '#eee',
+};
+
 const TabNavigator = () => {
   useEffect(() => {
     console.log('✅ TabNavigator mounted');
@@ -41,13 +49,9 @@ const TabNavigator = () => {
           fontWeight: '500',
           marginBottom: adjust(5),
         },
-        tabBarStyle: {
-          height: adjust(60),
-          paddingTop: adjust(5),
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#eee',
-        },
+        tabBarStyle: defaultTabBarStyle,
+        // This is the key option that allows the tab bar to be hidden by keyboard
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tab.Screen

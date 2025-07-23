@@ -67,7 +67,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   const params = route.params as RouteParams;
 
   // Use WeatherContext for current location and forecast
-  const { forecast, isLoading: isLoadingWeather, error, fetchForecastForCity } = useWeatherContext();
+  const { forecast, isLoading: isLoadingWeather, error, fetchForecastForCity, preferredUnits } = useWeatherContext();
   const [location, setLocation] = useState<string | null>(null);
 
   // State for city search and management
@@ -273,6 +273,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
       hourlyData = weatherData.hourly.slice(0, 8);
     }
 
+    const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
+
     return (
       <View style={styles.detailedForecastContainer}>
         <Text style={styles.dateHeader}>
@@ -284,8 +286,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           <View style={styles.temperatureContainer}>
             <Text style={styles.currentTemp}>
               {selectedDay === 0
-                ? `${Math.round(currentWeather?.temperature || 0)}°C`
-                : `${Math.round(currentForecast.temperature.max)}°C`}
+                ? `${Math.round(currentWeather?.temperature || 0)}°${tempUnit}`
+                : `${Math.round(currentForecast.temperature.max)}°${tempUnit}`}
             </Text>
             <Text style={styles.minMaxTemp}>
               {`${Math.round(currentForecast.temperature.max)}°/${Math.round(currentForecast.temperature.min)}°`}
@@ -315,7 +317,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
                 size={adjust(24)}
                 color={getWeatherIconColor(hour.weather.icon)}
               />
-              <Text style={styles.hourlyTemp}>{Math.round(hour.temperature.day)}°</Text>
+              <Text style={styles.hourlyTemp}>{Math.round(hour.temperature.day)}°{tempUnit}</Text>
               <View style={styles.rainChanceContainer}>
                 <MaterialCommunityIcons name="water" size={adjust(12)} color="#5D9CEC" />
                 <Text style={styles.rainChanceText}>{Math.round((hour.pop || 0) * 100)}%</Text>
@@ -331,8 +333,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
             <Text style={styles.detailLabel}>Wind</Text>
             <Text style={styles.detailValue}>
               {selectedDay === 0
-                ? `${currentWeather?.windSpeed} km/h`
-                : `${currentForecast.windSpeed} km/h`}
+                ? `${currentWeather?.windSpeed} ${preferredUnits === 'imperial' ? 'mph' : 'km/h'}`
+                : `${currentForecast.windSpeed} ${preferredUnits === 'imperial' ? 'mph' : 'km/h'}`}
             </Text>
           </View>
           <View style={styles.detailItem}>

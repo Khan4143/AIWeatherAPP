@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
     lineHeight: adjust(18),
-    fontWeight: '500',
+    fontWeight: '400',
   },
   testimonialsContainer: {
     marginBottom: adjust(16),

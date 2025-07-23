@@ -39,6 +39,24 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) =>
     fetchForecast
   } = useWeather({ units: preferredUnits, autoFetch: false });
 
+  // Add effect to handle unit changes
+  useEffect(() => {
+    if (userLocation) {
+      console.log("WeatherContext: Units changed, refreshing data with new units:", preferredUnits);
+      setIsRefreshing(true);
+      fetchForecast(userLocation).finally(() => {
+        setIsRefreshing(false);
+      });
+    }
+  }, [preferredUnits, userLocation, fetchForecast]);
+
+  // Update the setPreferredUnits function to handle immediate updates
+  const handleUnitChange = useCallback((units: 'metric' | 'imperial') => {
+    console.log("WeatherContext: Changing units to:", units);
+    setPreferredUnits(units);
+    // The useEffect above will handle the data refresh
+  }, []);
+
   // Calculate weather signature to detect significant changes
   useEffect(() => {
     if (currentWeather) {
@@ -154,7 +172,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) =>
         isRefreshing,
         fetchWeatherForCity,
         fetchForecastForCity,
-        setPreferredUnits,
+        setPreferredUnits: handleUnitChange,
         preferredUnits,
         forceRefresh
       }}

@@ -53,28 +53,61 @@ const activityOptions = [
   { id: 'cycling', label: 'Cycling', icon: 'bicycle' },
 ];
 
-// Create a global object to store user preferences
-interface PreferenceDataType {
+// Update PreferenceData interface
+export interface PreferenceData {
   style: string | null;
   healthConcerns: string[];
   activities: string[];
+  notifications?: {
+    commute?: boolean;
+    clothing?: boolean;
+    health?: boolean;
+    events?: boolean;
+  };
+  units: {
+    temperature: 'metric' | 'imperial';
+  };
+  language?: string;
 }
 
-export const PreferenceData = {
-  style: null as string | null,
-  healthConcerns: [] as string[],
-  activities: [] as string[],
-  getAll: function(): PreferenceDataType {
+// Create PreferenceDataManager type with methods
+interface PreferenceDataManager extends PreferenceData {
+  getAll: () => PreferenceData;
+  setAll: (data: Partial<PreferenceData>) => void;
+}
+
+// Initialize PreferenceData with methods
+export const PreferenceData: PreferenceDataManager = {
+  style: null,
+  healthConcerns: [],
+  activities: [],
+  notifications: {
+    commute: false,
+    clothing: false,
+    health: false,
+    events: false,
+  },
+  units: {
+    temperature: 'metric',
+  },
+  language: 'English',
+  getAll: function(): PreferenceData {
     return {
       style: this.style,
       healthConcerns: [...this.healthConcerns],
       activities: [...this.activities],
+      notifications: { ...this.notifications },
+      units: { temperature: this.units.temperature },
+      language: this.language,
     };
   },
-  setAll: function(data: Partial<PreferenceDataType>): void {
+  setAll: function(data: Partial<PreferenceData>): void {
     this.style = data.style ?? this.style;
     this.healthConcerns = data.healthConcerns ? [...data.healthConcerns] : this.healthConcerns;
     this.activities = data.activities ? [...data.activities] : this.activities;
+    this.notifications = data.notifications ? { ...data.notifications } : this.notifications;
+    this.units = data.units ? { temperature: data.units.temperature } : this.units;
+    this.language = data.language ?? this.language;
   },
 };
 
@@ -373,7 +406,7 @@ const PreferenceScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.bottomContainer}>
             <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
               <Text style={styles.nextButtonText}>Next</Text>
-              <Feather name="arrow-right" size={adjust(16)} color="#fff" />
+              <Ionicons name="chevron-forward" size={adjust(16)} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>

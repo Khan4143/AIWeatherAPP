@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,7 +17,6 @@ import {SCREEN_HEIGHT, SCREEN_WIDTH} from '../constants/dimesions';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Icons from 'react-native-vector-icons/Feather';
 import {UserDataManager} from '../utils/userDataManager';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const WelcomeScreen = ({navigation, route}: {navigation: any; route: any}) => {
   React.useEffect(() => {
@@ -54,7 +52,10 @@ const WelcomeScreen = ({navigation, route}: {navigation: any; route: any}) => {
       }
     };
 
-    checkExistingUser();
+    // Run the check in the background
+    requestAnimationFrame(() => {
+      checkExistingUser();
+    });
   }, [navigation, route?.params?.bypassOnboardingCheck]);
 
   const handleNavigate = () => {
@@ -62,8 +63,8 @@ const WelcomeScreen = ({navigation, route}: {navigation: any; route: any}) => {
   };
 
   return (
-    <View style={styles.container} >
-    
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#000000" barStyle="light-content" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{flexGrow: 1}}>

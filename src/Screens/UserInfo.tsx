@@ -346,24 +346,30 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
 
   // Handle next button press
   const handleNext = async () => {
-    // let hasError = false;
+    let hasError = false;
 
     // if (!age.trim()) {
     //   setAgeError(true);
     //   hasError = true;
     // }
 
-    // if (!manualLocation.trim()) {
-    //   setLocationError(true);
-    //   hasError = true;
-    // }
+    if (!manualLocation.trim()) {
+      setLocationError(true);
+      hasError = true;
+      Alert.alert(
+        'Location Required',
+        'Please enter your location to continue.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-    // if (hasError) {
-    //   return;
-    // }
+    if (hasError) {
+      return;
+    }
 
     // If we get here, all required fields are filled
-    const locationToSave = manualLocation || 'New York, US';
+    const locationToSave = manualLocation;
     
     // Save to global object
     UserData.setAll({
@@ -846,8 +852,6 @@ const styles = StyleSheet.create({
     borderRadius: adjust(22),
     paddingVertical: adjust(10),
     paddingHorizontal: adjust(25),
-    marginTop: adjust(16),
-    marginBottom: adjust(20),
     alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

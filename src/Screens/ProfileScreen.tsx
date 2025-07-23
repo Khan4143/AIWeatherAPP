@@ -18,6 +18,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import adjust from '../utils/adjust';
 import { SCREEN_WIDTH } from '../constants/dimesions';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../navigations/Navigations';
 import { UserDataManager } from '../utils/userDataManager';
 import { useFocusEffect } from '@react-navigation/native';
 import { UserData } from '../Screens/UserInfo';
@@ -71,7 +72,7 @@ interface PreferenceDataType {
 }
 
 type ProfileScreenProps = {
-  navigation: StackNavigationProp<any>;
+  navigation: StackNavigationProp<RootStackParamList>;
 };
 
 const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
@@ -87,7 +88,8 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   const [userGender, setUserGender] = useState('');
   const [userOccupation, setUserOccupation] = useState('');
   const [userLocation, setUserLocation] = useState('');
-  const [temperatureUnit, setTemperatureUnit] = useState('°F');
+  // Update the temperatureUnit state to use correct type
+  const [temperatureUnit, setTemperatureUnit] = useState<'metric' | 'imperial'>('imperial');
   const [languagePreference, setLanguagePreference] = useState('English');
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   // Add states for preference data
@@ -150,7 +152,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         setEventReminders(preferences.notifications?.events || false);
         
         if (preferences.units?.temperature) {
-          setTemperatureUnit(preferences.units.temperature);
+          setTemperatureUnit(preferences.units.temperature as 'metric' | 'imperial');
         }
         
         if (preferences.language) {
@@ -244,7 +246,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
           events: eventReminders
         },
         units: {
-          temperature: temperatureUnit
+          temperature: temperatureUnit // Now correctly typed as 'metric' | 'imperial'
         },
         language: languagePreference
       };

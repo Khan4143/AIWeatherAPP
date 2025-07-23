@@ -144,6 +144,8 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
   // Add state for custom alert modal
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [showWarning, setShowWarning] = useState(false);
+  const warningTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     // Hide header on mount
@@ -331,9 +333,14 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
           if (selectedEveningActivities.length < 2) {
             return [...prev, activityId];
           } else {
-            // Show custom alert instead of using Alert.alert
-            setAlertMessage("You can only select up to 2 evening activities. Please deselect one first.");
-            setAlertVisible(true);
+            // Show warning for 2 seconds
+            if (warningTimeoutRef.current) {
+              clearTimeout(warningTimeoutRef.current);
+            }
+            setShowWarning(true);
+            warningTimeoutRef.current = setTimeout(() => {
+              setShowWarning(false);
+            }, 2000);
             // Return the current selections unchanged
             return prev;
           }
@@ -341,6 +348,15 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
       }
     });
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Render commute method item for FlatList
   const renderCommuteMethodItem = ({ item }: { item: typeof commuteOptions[0] }) => (
@@ -571,12 +587,17 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
         <View style={[styles.questionContainer, styles.sectionContainer]}>
           <Text style={styles.questionText}>What do you enjoy in the evenings?</Text>
           <View style={styles.selectionCounterContainer}>
-            <Text style={[
-              styles.counterText,
-              selectedActivities.filter(id => ['sports', 'gardening', 'dogwalk', 'social', 'movie', 'reading'].includes(id)).length === 2 ? styles.counterTextFull : null
-            ]}>
-              {selectedActivities.filter(id => ['sports', 'gardening', 'dogwalk', 'social', 'movie', 'reading'].includes(id)).length}/2 selected
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[
+                styles.counterText,
+                selectedActivities.filter(id => ['sports', 'gardening', 'dogwalk', 'social', 'movie', 'reading'].includes(id)).length === 2 ? styles.counterTextFull : null
+              ]}>
+                {selectedActivities.filter(id => ['sports', 'gardening', 'dogwalk', 'social', 'movie', 'reading'].includes(id)).length}/2 selected
+              </Text>
+              {showWarning && (
+                <Text style={styles.warningText}>Can't select more</Text>
+              )}
+            </View>
           </View>
           <View style={styles.optionsContainer}>
             <TouchableOpacity 
@@ -976,7 +997,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   counterTextFull: {
-    color: '#517FE0',
+    color: '#fff',
+  },
+  warningText: {
+    fontSize: adjust(10),
+    color: '#D3D3D3',
+    fontWeight: '500',
+    marginLeft: adjust(8),
   },
   
 });

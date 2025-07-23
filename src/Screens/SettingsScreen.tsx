@@ -30,6 +30,7 @@ import { DailyRoutineData } from '../Screens/DailyRoutine';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { validateCity } from '../services/weatherService';
 import debounce from 'lodash/debounce';
+import { useWeatherContext } from '../contexts/WeatherContext';
 
 // Storage keys (should match UserDataManager's keys)
 const STORAGE_KEYS = {
@@ -67,6 +68,9 @@ interface PreferenceDataType {
   style: string | null;
   healthConcerns: string[];
   activities: string[];
+  units?: {
+    temperature: string;
+  };
 }
 
 type SettingsScreenProps = {
@@ -106,12 +110,47 @@ interface CityObject {
 }
 
 const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
+  const { preferredUnits, setPreferredUnits } = useWeatherContext();
+  const [useCelsius, setUseCelsius] = useState(preferredUnits === 'metric');
+
+  // Add useEffect to sync useCelsius with preferredUnits
+  useEffect(() => {
+    setUseCelsius(preferredUnits === 'metric');
+  }, [preferredUnits]);
+
+  // Update the temperature unit toggle handler
+  const handleTemperatureUnitChange = async (value: boolean) => {
+    const newUnit = value ? 'metric' : 'imperial';
+    
+    // Update WeatherContext first - this will trigger an immediate refresh
+    setPreferredUnits(newUnit);
+    
+    // Update preferences in AsyncStorage
+    try {
+      const currentPreferences = await AsyncStorage.getItem(STORAGE_KEYS.PREFERENCES);
+      const preferences = currentPreferences ? JSON.parse(currentPreferences) : {};
+      
+      const updatedPreferences = {
+        ...preferences,
+        units: {
+          ...preferences.units,
+          temperature: newUnit
+        }
+      };
+      
+      await AsyncStorage.setItem(STORAGE_KEYS.PREFERENCES, JSON.stringify(updatedPreferences));
+      showToast('Temperature unit updated successfully');
+    } catch (error) {
+      console.error('Error saving temperature unit preference:', error);
+      showToast('Failed to save temperature unit preference', 'error');
+    }
+  };
+
   // State for modal visibility
   const [modalVisible, setModalVisible] = useState(false);
   const [activeModal, setActiveModal] = useState('');
   
   // State for toggle switches
-  const [useCelsius, setUseCelsius] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
   // State for user data
@@ -339,6 +378,13 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         
         setSelectedHealthConcerns(healthConcernIds);
         setSelectedActivities(activityIds);
+        
+        // Set temperature unit preference
+        if (preferences.units?.temperature) {
+          const isMetric = preferences.units.temperature === 'metric';
+          setUseCelsius(isMetric);
+          setPreferredUnits(isMetric ? 'metric' : 'imperial');
+        }
       }
       
     } catch (error) {
@@ -1600,11 +1646,11 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>Use Celsius</Text>
-                <Text style={styles.settingDescription}>Switch between °F and °C</Text>
+                <Text style={styles.settingDescription}>Currently using {useCelsius ? '°C' : '°F'}</Text>
               </View>
               <Switch
                 value={useCelsius}
-                onValueChange={setUseCelsius}
+                onValueChange={handleTemperatureUnitChange}
                 trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
                 thumbColor={useCelsius ? '#4361EE' : '#f4f3f4'}
                 ios_backgroundColor="#e0e0e0"

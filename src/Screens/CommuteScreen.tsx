@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   StatusBar,
@@ -24,6 +23,9 @@ import { generateResponse } from '../services/openaiService';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { TabParamList } from '../navigations/TabNavigator';
 
 interface Message {
   id: string;
@@ -46,6 +48,7 @@ const predefinedQuestions = [
 const CommuteScreen = () => {
   const { currentWeather, forecast, preferredUnits } = useWeatherContext();
   const userLocation = UserData.location || 'your location';
+  const navigation = useNavigation<BottomTabNavigationProp<TabParamList, 'Commute'>>();
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -58,25 +61,40 @@ const CommuteScreen = () => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [showKeyboard, setShowKeyboard] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
-      setShowKeyboard(true);
+    const showKeyboard = () => {
       scrollToBottom();
-    });
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setShowKeyboard(false);
-    });
+      
+      // Use correct typing for navigation options
+      navigation.getParent()?.setOptions({
+        tabBarStyle: { display: 'none' }
+      });
+    };
+    
+    const hideKeyboard = () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: undefined
+      });
+    };
+    
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', showKeyboard);
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', hideKeyboard);
+    
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
+      // Restore tab bar style when component unmounts
+      navigation.getParent()?.setOptions({
+        tabBarStyle: undefined
+      });
     };
-  }, []);
+  }, [navigation]);
 
   const scrollToBottom = () => {
     if (scrollViewRef.current) {
@@ -165,9 +183,9 @@ const CommuteScreen = () => {
 
   const handleQuestionSelect = (question: string) => {
     setInputText(question);
-    // Automatically send the message after a short delay
+    // Focus the input after a short delay to ensure the keyboard is shown
     setTimeout(() => {
-      handleSendMessage();
+      inputRef.current?.focus();
     }, 100);
   };
 
@@ -209,7 +227,13 @@ const CommuteScreen = () => {
             <View style={styles.headerDivider} />
           </LinearGradient>
 
-          <ScrollView ref={scrollViewRef} style={styles.chatContainer} contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            ref={scrollViewRef} 
+            style={styles.chatContainer} 
+            contentContainerStyle={styles.chatContent} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {messages.map((message) => (
               <View
                 key={`message-${message.id}`}
@@ -240,43 +264,38 @@ const CommuteScreen = () => {
             ))}
           </ScrollView>
 
-          {!showKeyboard && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.questionsOuterContainer}
-              contentContainerStyle={styles.questionsScrollContent}
-            >
-              {predefinedQuestions.map((question, index) => (
-                <TouchableOpacity
-                  key={`question-${question.id}`}
-                  style={[
-                    styles.questionButton,
-                    index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
-                  ]}
-                  onPress={() => handleQuestionSelect(question.text)}
-                >
-                  <Text
-                    style={[
-                      styles.questionText,
-                      index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {question.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={adjust(10)}
-            style={styles.inputContainer}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.questionsOuterContainer}
+            contentContainerStyle={styles.questionsScrollContent}
           >
+            {predefinedQuestions.map((question, index) => (
+              <TouchableOpacity
+                key={`question-${question.id}`}
+                style={[
+                  styles.questionButton,
+                  index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
+                ]}
+                onPress={() => handleQuestionSelect(question.text)}
+              >
+                <Text
+                  style={[
+                    styles.questionText,
+                    index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {question.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
               <TextInput
+                ref={inputRef}
                 style={styles.input}
                 placeholder="Ask me about today's plans..."
                 placeholderTextColor="#999"
@@ -290,7 +309,7 @@ const CommuteScreen = () => {
                 <AntDesign name="arrowup" size={adjust(18)} color="#fff" />
               </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+          </View>
 
           {toastVisible && (
             <Animated.View style={[styles.toast, { opacity: fadeAnim }]}>
@@ -356,58 +375,70 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
+    marginBottom: adjust(90), // Add margin to accommodate questions and input
   },
   chatContent: {
-    padding: adjust(12), // Reduced from 14
-    paddingBottom: adjust(120), // Reduced from 140
-    paddingTop: adjust(6), // Reduced from 8
+    padding: adjust(12),
+    paddingBottom: adjust(20), // Reduced since we have marginBottom on container
+    paddingTop: adjust(6),
   },
   messageBubble: {
-    marginBottom: adjust(12), // Reduced from 14
-    maxWidth: '80%',
+    marginBottom: adjust(12),
+    maxWidth: '85%',
     flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'flex-start',
   },
   userMessage: {
     alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
   },
   skylarMessage: {
     alignSelf: 'flex-start',
-    marginLeft: adjust(4), // Reduced from 5
+    marginLeft: adjust(4),
   },
   messageBubbleAvatar: {
-    width: adjust(24), // Reduced from 28
-    height: adjust(24), // Reduced from 28
-    borderRadius: adjust(12), // Reduced from 14
+    width: adjust(24),
+    height: adjust(24),
+    minWidth: adjust(24),
+    borderRadius: adjust(12),
     backgroundColor: '#4361EE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: adjust(5), // Reduced from 6
+    marginRight: adjust(5),
     alignSelf: 'flex-start',
+    flexShrink: 0,
   },
   userMessageBubbleAvatar: {
     width: adjust(24),
     height: adjust(24),
+    minWidth: adjust(24),
     borderRadius: adjust(12),
     backgroundColor: '#4361EE',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: adjust(5),
     alignSelf: 'flex-start',
+    flexShrink: 0,
   },
   messageContent: {
-    borderRadius: adjust(16), // Reduced from 18
-    paddingHorizontal: adjust(12), // Reduced from 14
-    paddingVertical: adjust(8), // Reduced from 10
+    borderRadius: adjust(16),
+    paddingHorizontal: adjust(12),
+    paddingVertical: adjust(8),
+    flexShrink: 1,
+    flexGrow: 0,
+    maxWidth: '80%',
   },
   userMessageContent: {
-    backgroundColor: '#4361EE', // Blue for user
+    backgroundColor: '#4361EE',
   },
   skylarMessageContent: {
-    backgroundColor: '#fff', // White for skylar
+    backgroundColor: '#fff',
   },
   messageText: {
-    fontSize: adjust(11), // Reduced from 12
-    lineHeight: adjust(13), // Reduced from 14
+    fontSize: adjust(11),
+    lineHeight: adjust(16),
+    flexWrap: 'wrap',
   },
   userMessageText: {
     color: '#fff',
@@ -423,10 +454,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
-    paddingVertical: adjust(6), // Reduced from 8
-    paddingHorizontal: adjust(12), // Reduced from 14
-    height: adjust(48), // Reduced from 54
+    paddingVertical: adjust(6),
+    paddingHorizontal: adjust(12),
+    height: adjust(48),
     justifyContent: 'center',
+    zIndex: 2, // Ensure input stays above questions
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -454,10 +486,11 @@ const styles = StyleSheet.create({
   },
   questionsOuterContainer: {
     position: 'absolute',
-    bottom: adjust(54), // Reduced from 60
+    bottom: adjust(54),
     left: 0,
     right: 0,
-    maxHeight: adjust(44), // Reduced from 50
+    maxHeight: adjust(44),
+    zIndex: 1, // Keep this to ensure questions stay above chat content
   },
   questionsScrollContent: {
     paddingHorizontal: adjust(12), // Reduced from 14
