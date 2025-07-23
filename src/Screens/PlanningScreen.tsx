@@ -24,6 +24,9 @@ import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../constants/dimesions';
 import { useWeatherContext } from '../contexts/WeatherContext';
 import { format } from 'date-fns';
 import { generateResponse } from '../services/openaiService';
+import { requestNotificationPermission } from '../Notifications/UseNotification';
+import { scheduleEventNotification, cancelEventNotification, updateEventNotification } from '../Notifications/EventNotifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Planned event type
 interface PlannedEvent {
@@ -194,8 +197,36 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  // Add these state variables for editing events
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<PlannedEvent | null>(null);
+
+  // Add these functions for persisting events
+  const savePlannedEvents = async (events: PlannedEvent[]) => {
+    try {
+      await AsyncStorage.setItem('plannedEvents', JSON.stringify(events));
+      console.log('✅ Saved planned events to storage');
+    } catch (error) {
+      console.error('❌ Failed to save planned events:', error);
+    }
+  };
+
+  const loadPlannedEvents = async () => {
+    try {
+      const eventsJson = await AsyncStorage.getItem('plannedEvents');
+      if (eventsJson) {
+        const events = JSON.parse(eventsJson) as PlannedEvent[];
+        console.log(`✅ Loaded ${events.length} planned events from storage`);
+        return events;
+      }
+    } catch (error) {
+      console.error('❌ Failed to load planned events:', error);
+    }
+    return [];
+  };
+
   // Handle confirming an event
-  const handleConfirmEvent = () => {
+  const handleConfirmEvent = async () => {
     // Check if an activity is selected
     if (!selectedActivity) {
       Alert.alert('Missing Information', 'Please select an activity first');
@@ -210,34 +241,88 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
 
     const selectedActivityObj = activities.find(activity => activity.id === selectedActivity);
       
-    // Check if there's already an event at the same time
-    const eventExists = plannedEvents.some(
-      event => event.date === selectedDate && event.time === selectedTime
-    );
-    
-    if (eventExists) {
-      Alert.alert('Time Conflict', 'You already have an event planned at this time');
-      return;
+    // If we're not editing, check for time conflicts
+    if (!isEditingEvent) {
+      // Check if there's already an event at the same time
+      const eventExists = plannedEvents.some(
+        event => event.date === selectedDate && event.time === selectedTime
+      );
+      
+      if (eventExists) {
+        Alert.alert('Time Conflict', 'You already have an event planned at this time');
+        return;
+      }
     }
     
-    // Create and add the new event
-    const newEvent: PlannedEvent = {
-      id: Date.now().toString(),
-      activity: selectedActivityObj?.name || 'Event',
-      description: eventDescription,
-      date: selectedDate,
-      time: selectedTime,
-      duration: selectedDuration
-    };
+    // Request notification permission
+    await requestNotificationPermission();
     
-    setPlannedEvents([...plannedEvents, newEvent]);
+    if (isEditingEvent && eventToEdit) {
+      // We're updating an existing event
+      const updatedEvent: PlannedEvent = {
+        ...eventToEdit,
+        activity: selectedActivityObj?.name || 'Event',
+        description: eventDescription,
+        date: selectedDate,
+        time: selectedTime,
+        duration: selectedDuration
+      };
+      
+      // Update the notification
+      const notificationId = await updateEventNotification(updatedEvent);
+      
+      // Update the event in state and storage
+      const updatedEvents = plannedEvents.map(event => 
+        event.id === updatedEvent.id ? updatedEvent : event
+      );
+      updatePlannedEventsWithStorage(updatedEvents);
+      
+      // Reset editing state
+      setIsEditingEvent(false);
+      setEventToEdit(null);
+      
+      // Show confirmation
+      Alert.alert(
+        'Success', 
+        `Your event has been updated!${notificationId ? ' The reminder has been rescheduled.' : ''}`
+      );
+    } else {
+      // We're creating a new event
+      const newEvent: PlannedEvent = {
+        id: Date.now().toString(),
+        activity: selectedActivityObj?.name || 'Event',
+        description: eventDescription,
+        date: selectedDate,
+        time: selectedTime,
+        duration: selectedDuration
+      };
+      
+      // Schedule a notification for this event
+      const notificationId = await scheduleEventNotification(newEvent);
+      
+      // Add the event to state and storage
+      const updatedEvents = [...plannedEvents, newEvent];
+      updatePlannedEventsWithStorage(updatedEvents);
+      
+      // Show confirmation
+      Alert.alert(
+        'Success', 
+        `Your event has been planned!${notificationId ? ' A reminder will notify you 5 minutes before the event.' : ''}`
+      );
+    }
     
     // Reset form
     setEventDescription('');
     setSelectedActivity('');
+  };
 
-    // Show confirmation
-    Alert.alert('Success', 'Your event has been planned!');
+  // Add a function to cancel editing
+  const handleCancelEdit = () => {
+    setIsEditingEvent(false);
+    setEventToEdit(null);
+    setEventDescription('');
+    setSelectedActivity('');
+    // Reset other form fields if needed
   };
 
   // Function to get weather data for the selected date and time
@@ -503,10 +588,32 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
     setShowDeleteConfirm(true);
   };
 
+  // Update the plannedEvents state to load from storage on component mount
+  useEffect(() => {
+    const loadEvents = async () => {
+      const events = await loadPlannedEvents();
+      setPlannedEvents(events);
+    };
+    
+    loadEvents();
+  }, []);
+
+  // Update the setPlannedEvents calls to also save to storage
+  const updatePlannedEventsWithStorage = (events: PlannedEvent[]) => {
+    setPlannedEvents(events);
+    savePlannedEvents(events);
+  };
+
   // Add confirm delete handler
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (eventToDelete) {
-      setPlannedEvents(plannedEvents.filter(event => event.id !== eventToDelete));
+      // Cancel the notification for this event
+      await cancelEventNotification(eventToDelete);
+      
+      // Remove the event from state and storage
+      const updatedEvents = plannedEvents.filter(event => event.id !== eventToDelete);
+      updatePlannedEventsWithStorage(updatedEvents);
+      
       setEventToDelete(null);
     }
     setShowDeleteConfirm(false);
@@ -650,6 +757,21 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
       };
     });
   }, [forecast, selectedDateIndex, calendarDates]);
+
+  // Add this function to handle editing an event
+  const handleEditEvent = (event: PlannedEvent) => {
+    // Set the form fields to the event values
+    setEventToEdit(event);
+    setSelectedActivity(activities.find(a => a.name === event.activity)?.id || '');
+    setEventDescription(event.description);
+    setSelectedDate(event.date);
+    setSelectedTime(event.time);
+    setSelectedDuration(event.duration);
+    setIsEditingEvent(true);
+    
+    // Scroll to the top of the form
+    // You could add a ref to the form and use scrollTo here if needed
+  };
 
   return (
     <View style={styles.safeArea}>
@@ -837,8 +959,19 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
               style={styles.confirmEventButton} 
               onPress={handleConfirmEvent}
             >
-              <Text style={styles.confirmEventButtonText}>Confirm Event</Text>
+              <Text style={styles.confirmEventButtonText}>
+                {isEditingEvent ? 'Update Event' : 'Confirm Event'}
+              </Text>
             </TouchableOpacity>
+
+            {isEditingEvent && (
+              <TouchableOpacity 
+                style={styles.cancelEditButton} 
+                onPress={handleCancelEdit}
+              >
+                <Text style={styles.cancelEditButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Assistant suggestion */}
@@ -865,9 +998,20 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                 <View key={event.id} style={styles.plannedEventCard}>
                   <View style={styles.plannedEventHeader}>
                     <Text style={styles.plannedEventActivity}>{event.activity}</Text>
-                    <TouchableOpacity onPress={() => handleDeleteEvent(event.id)}>
-                      <Ionicons name="trash-outline" size={adjust(18)} color="#FF6B6B" />
-                    </TouchableOpacity>
+                    <View style={styles.eventActionButtons}>
+                      <TouchableOpacity 
+                        style={styles.eventActionButton} 
+                        onPress={() => handleEditEvent(event)}
+                      >
+                        <Ionicons name="pencil-outline" size={adjust(18)} color="#4361EE" />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.eventActionButton} 
+                        onPress={() => handleDeleteEvent(event.id)}
+                      >
+                        <Ionicons name="trash-outline" size={adjust(18)} color="#FF6B6B" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   
                   <Text style={styles.plannedEventDesc}>{event.description}</Text>
@@ -1780,6 +1924,25 @@ const styles = StyleSheet.create({
   checkButtonText: {
     color: '#333',
     fontSize: adjust(15),
+    fontWeight: '600',
+  },
+  eventActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventActionButton: {
+    marginLeft: adjust(10),
+  },
+  cancelEditButton: {
+    backgroundColor: '#f1f1f1',
+    borderRadius: adjust(8),
+    paddingVertical: adjust(8),
+    alignItems: 'center',
+    marginTop: adjust(8),
+  },
+  cancelEditButtonText: {
+    color: '#666',
+    fontSize: adjust(11),
     fontWeight: '600',
   },
 });
