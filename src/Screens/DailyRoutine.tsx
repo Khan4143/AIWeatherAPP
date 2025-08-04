@@ -19,6 +19,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import adjust from '../utils/adjust';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../constants/dimesions';
 import Icon from 'react-native-vector-icons/AntDesign';
@@ -34,7 +35,7 @@ const commuteOptions = [
   { id: 'train', label: 'Train', icon: 'train-outline' },
   { id: 'bicycle', label: 'Bicycle', icon: 'bicycle-outline' },
   { id: 'walk', label: 'Walk', icon: 'walk-outline' },
-  { id: 'motorcycle', label: 'Motorcycle', icon: 'motorcycle-outline' },
+  { id: 'motorcycle', label: 'Motorcycle', icon: 'motorbike', iconFamily: 'MaterialCommunityIcons' },
   { id: 'subway', label: 'Subway', icon: 'subway-outline' },
 ];
 
@@ -359,29 +360,49 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
   }, []);
 
   // Render commute method item for FlatList
-  const renderCommuteMethodItem = ({ item }: { item: typeof commuteOptions[0] }) => (
-    <TouchableOpacity 
-      style={[
-        styles.commuteOptionButton, 
-        commuteMethod === item.id && styles.selectedOption
-      ]} 
-      onPress={() => selectCommuteMethod(item.id)}
-    >
-      <Ionicons 
-        name={item.icon as any} 
-        size={adjust(16)} 
-        color={commuteMethod === item.id ? "#fff" : "#333"} 
-      />
-      <Text 
+  const renderCommuteMethodItem = ({ item }: { item: typeof commuteOptions[0] }) => {
+    let IconComponent;
+    switch (item.iconFamily) {
+      case 'FontAwesome5':
+        IconComponent = FontAwesome5;
+        break;
+      case 'FontAwesome6':
+        IconComponent = FontAwesome6;
+        break;
+      case 'MaterialIcons':
+        IconComponent = MaterialIcons;
+        break;
+      case 'MaterialCommunityIcons':
+        IconComponent = MaterialCommunityIcons;
+        break;
+      default:
+        IconComponent = Ionicons;
+    }
+
+    return (
+      <TouchableOpacity 
         style={[
-          styles.commuteOptionText, 
-          commuteMethod === item.id && styles.selectedOptionText
-        ]}
+          styles.commuteOptionButton, 
+          commuteMethod === item.id && styles.selectedOption
+        ]} 
+        onPress={() => selectCommuteMethod(item.id)}
       >
-        {item.label}
-      </Text>
-    </TouchableOpacity>
-  );
+        <IconComponent 
+          name={item.icon as any} 
+          size={adjust(16)} 
+          color={commuteMethod === item.id ? "#fff" : "#333"} 
+        />
+        <Text 
+          style={[
+            styles.commuteOptionText, 
+            commuteMethod === item.id && styles.selectedOptionText
+          ]}
+        >
+          {item.label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   // Render activity item for FlatList
   const renderActivityItem = ({ item }: { item: typeof activityOptions[0] }) => {

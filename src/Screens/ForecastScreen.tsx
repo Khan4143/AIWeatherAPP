@@ -24,9 +24,8 @@ import adjust from '../utils/adjust';
 import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../constants/dimesions';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useRoute, RouteProp } from '@react-navigation/native';
-import useWeather from '../hooks/useWeather';
 import { format } from 'date-fns';
-import { ForecastData, WeatherData, validateCity } from '../services/weatherService';
+import { ForecastData, getMaterialWeatherIcon } from '../services/weatherService';
 import { useWeatherContext } from '../contexts/WeatherContext';
 import { UserData } from '../Screens/UserInfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,16 +39,6 @@ type ForecastScreenProps = {
 // Storage key for saved cities
 const SAVED_CITIES_KEY = 'skylar_saved_cities';
 
-const POPULAR_CITIES = [
-  'New York, US', 'Los Angeles, US', 'London, GB', 'Tokyo, JP', 'Paris, FR', 'Berlin, DE', 'Sydney, AU',
-  'Mumbai, IN', 'Beijing, CN', 'Rio de Janeiro, BR', 'Cairo, EG', 'Moscow, RU', 'Toronto, CA', 'Rome, IT',
-  'Madrid, ES', 'Amsterdam, NL', 'Dubai, AE', 'Mexico City, MX', 'Bangkok, TH', 'Singapore, SG',
-  'Stockholm, SE', 'Istanbul, TR', 'Seoul, KR', 'Buenos Aires, AR', 'Nairobi, KE', 'Vienna, AT',
-  'Athens, GR', 'Copenhagen, DK', 'Brussels, BE', 'Helsinki, FI', 'Lisbon, PT', 'Zurich, CH', 'Oslo, NO',
-  'Warsaw, PL', 'Prague, CZ', 'Budapest, HU', 'Auckland, NZ', 'Jakarta, ID', 'Manila, PH', 'Kuala Lumpur, MY',
-  'Santiago, CL', 'Bogota, CO', 'Lima, PE', 'Johannesburg, ZA', 'Cape Town, ZA',
-];
-const API_KEY = '87b449b894656bb5d85c61981ace7d25';
 interface CityObject { key: string; display: string; isDefault?: boolean; }
 
 // Google Places API Key
@@ -65,6 +54,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   const [citySearchModalVisible, setCitySearchModalVisible] = useState(false);
   const route = useRoute();
   const params = route.params as RouteParams;
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Use WeatherContext for current location and forecast
   const { forecast, isLoading: isLoadingWeather, error, fetchForecastForCity, preferredUnits } = useWeatherContext();
@@ -120,30 +110,61 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   // Use forecast as weatherData
   const weatherData: ForecastData | null = forecast;
 
-  // Map OpenWeather icon codes to MaterialCommunityIcons
-  const mapWeatherIcon = (iconCode: string) => {
-    const iconMap: { [key: string]: string } = {
-      '01d': 'weather-sunny',
-      '01n': 'weather-night',
-      '02d': 'weather-partly-cloudy',
-      '02n': 'weather-night-partly-cloudy',
-      '03d': 'weather-cloudy',
-      '03n': 'weather-cloudy',
-      '04d': 'weather-cloudy',
-      '04n': 'weather-cloudy',
-      '09d': 'weather-pouring',
-      '09n': 'weather-pouring',
-      '10d': 'weather-rainy',
-      '10n': 'weather-rainy',
-      '11d': 'weather-lightning',
-      '11n': 'weather-lightning',
-      '13d': 'weather-snowy',
-      '13n': 'weather-snowy',
-      '50d': 'weather-fog',
-      '50n': 'weather-fog'
-    };
+  // Get current hour's forecast data
+  const getCurrentHourForecast = () => {
+    if (!weatherData?.hourly || weatherData.hourly.length === 0) return null;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Find the forecast entry for the current hour
+    const currentHourForecast = weatherData.hourly.find(hour => {
+      const hourDate = new Date(hour.date * 1000);
+      return hourDate.getHours() === currentHour;
+    });
+    
+    // If not found, return the first hour (closest to current time)
+    return currentHourForecast || weatherData.hourly[0];
+  };
 
-    return iconMap[iconCode] || 'weather-cloudy';
+  // Generate accurate weather description based on icon code
+  const getAccurateWeatherDescription = (iconCode: string): string => {
+    if (!iconCode) return 'Unknown weather';
+    
+    const conditionCode = iconCode.substring(0, 2);
+    const isDayTime = iconCode.endsWith('d');
+    
+    switch(conditionCode) {
+      case '01': // clear sky
+        return isDayTime ? 'Clear sky' : 'Clear night';
+      
+      case '02': // few clouds
+        return isDayTime ? 'Partly cloudy' : 'Partly cloudy night';
+      
+      case '03': // scattered clouds
+        return isDayTime ? 'Scattered clouds' : 'Scattered clouds';
+      
+      case '04': // broken clouds
+        return isDayTime ? 'Overcast' : 'Overcast';
+      
+      case '09': // shower rain
+        return isDayTime ? 'Light rain showers' : 'Light rain showers';
+      
+      case '10': // rain
+        return isDayTime ? 'Rain' : 'Rain';
+      
+      case '11': // thunderstorm
+        return isDayTime ? 'Thunderstorm' : 'Thunderstorm';
+      
+      case '13': // snow
+        return isDayTime ? 'Snow' : 'Snow';
+      
+      case '50': // mist/fog
+        return isDayTime ? 'Mist' : 'Mist';
+      
+      default:
+        return 'Unknown weather';
+    }
   };
 
   // Get weather icon based on condition
@@ -151,47 +172,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
     console.log('Received weather icon code:', iconCode);
     if (!iconCode) return 'weather-cloudy';
     
-    // Enhanced icon mapping with more accurate weather states
-    const materialIconMap: {[key: string]: string} = {
-      // Clear sky
-      '01d': 'weather-sunny', // clear sky day
-      '01n': 'weather-night', // clear sky night
-      
-      // Few clouds (11-25%)
-      '02d': 'weather-partly-cloudy', // few clouds day
-      '02n': 'weather-night-partly-cloudy', // few clouds night
-      
-      // Scattered clouds (25-50%)
-      '03d': 'weather-cloudy', // scattered clouds day
-      '03n': 'weather-cloudy', // scattered clouds night
-      
-      // Broken/overcast clouds (51-100%)
-      '04d': 'weather-cloudy', // broken clouds day
-      '04n': 'weather-cloudy', // broken clouds night
-      
-      // Shower rain - intermittent intense rain
-      '09d': 'weather-pouring', // shower rain day
-      '09n': 'weather-pouring', // shower rain night
-      
-      // Rain - continuous precipitation
-      '10d': 'weather-rainy', // rain day
-      '10n': 'weather-rainy', // rain night
-      
-      // Thunderstorm
-      '11d': 'weather-lightning', // thunderstorm day
-      '11n': 'weather-lightning', // thunderstorm night
-      
-      // Snow
-      '13d': 'weather-snowy', // snow day
-      '13n': 'weather-snowy', // snow night
-      
-      // Mist/fog/haze
-      '50d': 'weather-fog', // mist day
-      '50n': 'weather-fog', // mist night
-    };
-    
-    // Get the mapped icon or fall back to cloudy
-    const iconName = materialIconMap[iconCode] || 'weather-cloudy';
+    // Get the mapped icon
+    const iconName = getMaterialWeatherIcon(iconCode);
     console.log('Mapped to icon:', iconName);
     return iconName;
   };
@@ -264,13 +246,13 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
 
     const currentForecast = weatherData.daily[selectedDay];
     const currentWeather = selectedDay === 0 ? weatherData.current : null;
-    // For hourly, use weatherData.hourly (first 8 for today, or filter by date for other days)
+    // For hourly forecast, use weatherData.hourly (first 24 hours for today, or filter by date for other days)
     let hourlyData = weatherData.hourly;
     if (selectedDay !== 0) {
       const selectedDate = new Date(currentForecast.date * 1000).getDate();
       hourlyData = weatherData.hourly.filter(h => new Date(h.date * 1000).getDate() === selectedDate);
     } else {
-      hourlyData = weatherData.hourly.slice(0, 8);
+      hourlyData = weatherData.hourly.slice(0, 24); // Show 24 hourly entries for today
     }
 
     const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
@@ -294,12 +276,36 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
             </Text>
           </View>
           <View style={styles.conditionContainer}>
-            <MaterialCommunityIcons
-              name={getWeatherIcon(currentForecast.weather.icon)}
-              size={adjust(48)}
-              color={getWeatherIconColor(currentForecast.weather.icon)}
-            />
-            <Text style={styles.conditionText}>{currentForecast.weather.description}</Text>
+            {(() => {
+              if (selectedDay === 0) {
+                // For today, use current hour's forecast data
+                const currentHourData = getCurrentHourForecast();
+                if (currentHourData) {
+                  return (
+                    <>
+                      <MaterialCommunityIcons
+                        name={getWeatherIcon(currentHourData.weather.icon)}
+                        size={adjust(48)}
+                        color={getWeatherIconColor(currentHourData.weather.icon)}
+                      />
+                      <Text style={styles.conditionText}>{getAccurateWeatherDescription(currentHourData.weather.icon)}</Text>
+                    </>
+                  );
+                }
+              }
+              
+              // For other days or fallback, use daily forecast data
+              return (
+                <>
+                  <MaterialCommunityIcons
+                    name={getWeatherIcon(currentForecast.weather.icon)}
+                    size={adjust(48)}
+                    color={getWeatherIconColor(currentForecast.weather.icon)}
+                  />
+                  <Text style={styles.conditionText}>{currentForecast.weather.description}</Text>
+                </>
+              );
+            })()}
           </View>
         </View>
         {/* Horizontal scrollable weather details */}
@@ -608,34 +614,76 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
     }
   }, [params?.openCityModal]);
 
+  // Add refresh handler
+  const handleRefresh = async () => {
+    if (isRefreshing) return; // Prevent multiple refreshes
+    
+    setIsRefreshing(true);
+    try {
+      const userDataLocation = UserData.location;
+      if (userDataLocation) {
+        await fetchForecastForCity(userDataLocation);
+      }
+    } catch (error) {
+      console.error('Error refreshing forecast:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (!weatherData && isLoadingWeather) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#b3d4ff' }}>
+      <LinearGradient colors={['#b3d4ff', '#4361EE']} style={styles.background} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
         <SafeAreaViewRN style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4361EE" />
+            <ActivityIndicator size="large" color="#fff" />
             <Text style={styles.loadingText}>Loading weather data...</Text>
             {error && (
               <Text style={styles.errorText}>{error.message}</Text>
             )}
           </View>
         </SafeAreaViewRN>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#b3d4ff' }}>
-      <View style={styles.safeArea}>
+    <LinearGradient colors={['#b3d4ff', '#4361EE']} style={styles.background} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
+      <View style={{ flex: 1, paddingBottom: adjust(40) }}>
         {/* Header with location */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.locationContainer}
-            onPress={toggleCitySearchModal}
-          >
-            <MaterialIcons name="location-on" size={adjust(16)} color="#4361EE" />
-            <Text style={styles.locationText}>{location}</Text>
-          </TouchableOpacity>
+          <View style={styles.locationContainer}>
+            <TouchableOpacity
+              style={styles.locationButton}
+              onPress={toggleCitySearchModal}
+            >
+              <Ionicons name="location" size={adjust(16)} color="#4361EE" />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {location || 'Select Location'}
+              </Text>
+              <Ionicons name="chevron-down" size={adjust(16)} color="#4361EE" />
+            </TouchableOpacity>
+
+            {/* Add refresh button */}
+            <TouchableOpacity
+              style={[
+                styles.refreshButton,
+                isRefreshing && styles.refreshButtonDisabled
+              ]}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color="#4361EE" />
+              ) : (
+                <Ionicons 
+                  name="refresh" 
+                  size={adjust(20)} 
+                  color="#4361EE" 
+                />
+              )}
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity 
             style={styles.addCityButton}
             onPress={toggleCitySearchModal} 
@@ -847,7 +895,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           </KeyboardAvoidingView>
         </LinearGradient>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -858,8 +906,12 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: adjust(12), // Reduced from 15
     backgroundColor: 'transparent',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: adjust(12),
+    paddingBottom: adjust(80), // Add padding for tab bar
   },
   loadingContainer: {
     flex: 1,
@@ -869,7 +921,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: adjust(8), // Reduced from 10
     fontSize: adjust(14), // Reduced from 16
-    color: '#4361EE',
+    color: '#fff',
   },
   errorText: {
     marginTop: adjust(10), // Reduced from 12
@@ -887,20 +939,41 @@ const styles = StyleSheet.create({
   locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: adjust(15),
+    width: '100%',
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  locationTextContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: adjust(20),
+    paddingHorizontal: adjust(12),
+    paddingVertical: adjust(6),
+    flex: 1,
+    marginRight: adjust(10),
   },
   locationText: {
-    fontSize: adjust(14), // Reduced from 16
-    fontWeight: '600',
+    fontSize: adjust(12),
     color: '#333',
-    marginLeft: adjust(4), // Reduced from 5
+    marginHorizontal: adjust(8),
+    flex: 1,
+  },
+  refreshButton: {
+    width: adjust(32),
+    height: adjust(32),
+    borderRadius: adjust(16),
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  refreshButtonDisabled: {
+    opacity: 0.7,
   },
   addCityButton: {
     padding: adjust(4), // Added padding for touch target
@@ -1276,6 +1349,9 @@ const styles = StyleSheet.create({
   googleSearchIcon: {
     marginLeft: adjust(8), // Reduced from 10
     marginRight: adjust(4), // Reduced from 5
+  },
+  background: {
+    flex: 1,
   },
 });
 

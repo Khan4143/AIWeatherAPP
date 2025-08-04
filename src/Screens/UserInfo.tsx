@@ -32,6 +32,7 @@ const STANDARD_SPACING = adjust(15);
 
 // Create a global object to store user data
 interface UserDataType {
+  name: string; // Add name to interface
   age: string;
   gender: string;
   occupation: string;
@@ -39,12 +40,14 @@ interface UserDataType {
 }
 
 export const UserData = {
+  name: '', // Add name to UserData
   age: '',
   gender: '',
   occupation: '',
   location: '',
   getAll: function(): UserDataType {
     return {
+      name: this.name,
       age: this.age,
       gender: this.gender,
       occupation: this.occupation,
@@ -52,6 +55,7 @@ export const UserData = {
     };
   },
   setAll: function(data: Partial<UserDataType>): void {
+    this.name = data.name || '';
     this.age = data.age || '';
     this.gender = data.gender || '';
     this.occupation = data.occupation || '';
@@ -74,6 +78,7 @@ const GOOGLE_PLACES_API_KEY = 'AIzaSyAJcSmb8jAEU5qVlzR3sTRcraWxb38B31w';
 
 const UserInfo = ({ navigation }: { navigation: any }) => {
   // State for form fields
+  const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
   const [occupation, setOccupation] = useState('');
@@ -91,6 +96,23 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
 
   // Add a ref for the input field
   const locationInputRef = useRef<TextInput>(null);
+
+  // Add new state for suggestion list height
+  const [suggestionListHeight, setSuggestionListHeight] = useState(0);
+  
+  // Calculate suggestion list height based on content
+  const calculateSuggestionListHeight = useCallback(() => {
+    const itemHeight = adjust(60); // Height of each suggestion item
+    const maxItems = 4; // Maximum number of items to show before scrolling
+    const totalItems = placesResults.length;
+    const newHeight = Math.min(totalItems * itemHeight, maxItems * itemHeight);
+    setSuggestionListHeight(newHeight);
+  }, [placesResults]);
+
+  // Update height when results change
+  useEffect(() => {
+    calculateSuggestionListHeight();
+  }, [placesResults, calculateSuggestionListHeight]);
 
   // Fetch from Google Places API
   const searchPlaces = useCallback(async (query: string) => {
@@ -276,11 +298,13 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
 
   // Handle gender selection
   const handleSelectGender = (selectedGender: string) => {
+    Keyboard.dismiss();
     setGender(selectedGender);
   };
 
   // Detect current location
   const handleDetectLocation = async () => {
+    Keyboard.dismiss();
     setIsLocating(true);
   
     try {
@@ -345,20 +369,22 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
   };
 
   // Handle next button press
+  const isValidLocation = (input: string) => {
+    const trimmedInput = input.trim();
+    // Check if input has at least 3 characters after trimming
+    // and contains some letters (not just numbers or special characters)
+    return trimmedInput.length >= 3 && /[a-zA-Z]/.test(trimmedInput);
+  };
+
   const handleNext = async () => {
     let hasError = false;
 
-    // if (!age.trim()) {
-    //   setAgeError(true);
-    //   hasError = true;
-    // }
-
-    if (!manualLocation.trim()) {
+    if (!manualLocation.trim() || !isValidLocation(manualLocation)) {
       setLocationError(true);
       hasError = true;
       Alert.alert(
-        'Location Required',
-        'Please enter your location to continue.',
+        'Invalid Location',
+        'Please enter a valid location with at least 3 characters.',
         [{ text: 'OK' }]
       );
       return;
@@ -368,11 +394,11 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
       return;
     }
 
-    // If we get here, all required fields are filled
     const locationToSave = manualLocation;
     
     // Save to global object
     UserData.setAll({
+      name,
       age,
       gender,
       occupation,
@@ -400,26 +426,25 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
     );
   };
 
-  // Modify the useEffect for keyboard handling
+  // Modify keyboard effect
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
-        // When keyboard shows and suggestions are visible, scroll to ensure they're visible
-        if (showCitySuggestions && scrollViewRef.current) {
-          setTimeout(() => {
-            if (locationInputRef.current) {
-              locationInputRef.current.measureInWindow((x, y, width, height) => {
-                if (scrollViewRef.current) {
-                  scrollViewRef.current.scrollTo({ 
-                    y: y - 120, // Scroll to position input at top with space for suggestions
-                    animated: true 
-                  });
-                }
+        if (showCitySuggestions && locationInputRef.current) {
+          locationInputRef.current.measureInWindow((x, y, width, height) => {
+            const availableSpace = SCREEN_HEIGHT - y - height - e.endCoordinates.height;
+            const suggestionsHeight = Math.min(availableSpace - adjust(10), adjust(250));
+            setSuggestionListHeight(suggestionsHeight);
+            
+            if (scrollViewRef.current) {
+              scrollViewRef.current.scrollTo({
+                y: Math.max(0, y - adjust(150)),
+                animated: true
               });
             }
-          }, 100);
+          });
         }
       }
     );
@@ -428,6 +453,7 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
       'keyboardDidHide',
       () => {
         setKeyboardHeight(0);
+        calculateSuggestionListHeight();
       }
     );
 
@@ -435,7 +461,52 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
-  }, [showCitySuggestions]);
+  }, [showCitySuggestions, calculateSuggestionListHeight]);
+
+  // Replace the suggestions ScrollView with FlatList
+  const renderSuggestions = () => {
+    if (!showCitySuggestions || !manualLocation.length) return null;
+
+    return (
+      <View style={styles.suggestionsWrapper}>
+        <View style={[styles.suggestionsCard, { height: suggestionListHeight }]}>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4361EE" />
+              <Text style={styles.loadingText}>Finding cities...</Text>
+            </View>
+          ) : placesResults.length > 0 ? (
+            <View style={styles.suggestionsList}>
+              {placesResults.map((item) => (
+                <TouchableOpacity 
+                  key={item.place_id}
+                  style={styles.suggestionItem}
+                  onPress={() => handlePlaceSelected(item.place_id, item.description)}
+                >
+                  <Ionicons name="location-outline" size={adjust(16)} color="#666" />
+                  <View style={styles.suggestionTextContainer}>
+                    <Text style={styles.suggestionMainText}>
+                      {item.structured_formatting?.main_text || item.description.split(',')[0]}
+                    </Text>
+                    {(item.structured_formatting?.secondary_text || item.description.includes(',')) && (
+                      <Text style={styles.suggestionSecondaryText}>
+                        {item.structured_formatting?.secondary_text || 
+                         item.description.split(',').slice(1).join(',').trim()}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyResultContainer}>
+              <Text style={styles.emptyResultText}>No cities found</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container} >
@@ -450,15 +521,24 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
           <ScrollView 
             ref={scrollViewRef}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="always"
-            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[
+              styles.scrollContent,
+              // Add minimal padding at bottom when suggestions are visible
+              showCitySuggestions && {
+                paddingBottom: suggestionListHeight + adjust(10) // Reduced from 150 to 20
+              }
+            ]}
       >
         {/* Custom Header with Back Button */}
         <View style={styles.headerContainer}>
           <TouchableOpacity 
             style={styles.backButton} 
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              Keyboard.dismiss();
+              navigation.goBack();
+            }}
           >
                 <Ionicons name="chevron-back" size={adjust(20)} color="#333" />
           </TouchableOpacity>
@@ -472,6 +552,18 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
         <Text style={styles.subHeaderText}>
           Skylar uses this info to give you smarter, personalized advice every day.
         </Text>
+
+        {/* Name Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.inputLabel}>What's your name?</Text>
+          <TextInput
+            style={styles.textInput}
+            value={name}
+            onChangeText={setName}
+            placeholder="Enter your name"
+            placeholderTextColor="#8e9aaf"
+          />
+        </View>
 
         {/* Age Input */}
         <View style={styles.inputContainer}>
@@ -605,52 +697,7 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
           {locationError && (
             <Text style={styles.errorText}>Location is required</Text>
           )}
-
-          {/* City suggestions dropdown */}
-          {showCitySuggestions && manualLocation.length > 0 && (
-            <View style={styles.suggestionsWrapper}>
-              <View style={styles.suggestionsCard}>
-                {isLoading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#4361EE" />
-                    <Text style={styles.loadingText}>Finding cities...</Text>
-                  </View>
-                ) : placesResults.length > 0 ? (
-                  <ScrollView 
-                    style={styles.suggestionsList}
-                    showsVerticalScrollIndicator={true}
-                    keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled={true}
-                  >
-                    {placesResults.map((item) => (
-                      <TouchableOpacity 
-                        key={item.place_id}
-                        style={styles.suggestionItem}
-                        onPress={() => handlePlaceSelected(item.place_id, item.description)}
-                      >
-                        <Ionicons name="location-outline" size={adjust(16)} color="#666" />
-                        <View style={styles.suggestionTextContainer}>
-                          <Text style={styles.suggestionMainText}>
-                            {item.structured_formatting?.main_text || item.description.split(',')[0]}
-                          </Text>
-                          {(item.structured_formatting?.secondary_text || item.description.includes(',')) && (
-                            <Text style={styles.suggestionSecondaryText}>
-                              {item.structured_formatting?.secondary_text || 
-                               item.description.split(',').slice(1).join(',').trim()}
-                            </Text>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.emptyResultContainer}>
-                    <Text style={styles.emptyResultText}>No cities found</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
+          {renderSuggestions()}
         </View>
 
         {/* Why do we ask this */}
@@ -681,7 +728,7 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#b3d4ff',
+    backgroundColor: 'transparent',
   },
   background: {
     flex: 1,
@@ -691,7 +738,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: adjust(12),
+    paddingHorizontal: adjust(15),
+    paddingBottom: adjust(25), // Add padding for tab bar
   },
   headerContainer: {
     flexDirection: 'row',
@@ -731,7 +779,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: adjust(12),
     padding: adjust(8),
-    marginBottom: adjust(12),
+    marginBottom: adjust(10), // Increased bottom margin
+    position: 'relative', // Ensure proper stacking
   },
   inputLabel: {
     fontSize: adjust(11),
@@ -812,7 +861,7 @@ const styles = StyleSheet.create({
   placesInputContainer: {
     position: 'relative',
     marginBottom: adjust(8),
-    zIndex: 1000,
+    zIndex: 9999, // Increased z-index
   },
   locationIconContainer: {
     position: 'absolute',
@@ -884,13 +933,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     marginTop: 2,
-    zIndex: 1002,
+    zIndex: 9999,
+    elevation: 9999,
+    maxHeight: adjust(300), // Maximum height for suggestions
   },
   suggestionsCard: {
     backgroundColor: '#fff',
     borderRadius: adjust(8),
-    minHeight: adjust(50),
-    maxHeight: adjust(200),
     borderWidth: 1,
     borderColor: '#e0e0e0',
     shadowColor: '#000',
@@ -898,9 +947,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 8,
+    overflow: 'hidden',
   },
   suggestionsList: {
-    maxHeight: adjust(200),
+    flex: 1,
+    overflow: 'scroll',
   },
   suggestionItem: {
     flexDirection: 'row',
@@ -910,6 +961,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#fff',
+    height: adjust(60),
   },
   suggestionTextContainer: {
     flex: 1,

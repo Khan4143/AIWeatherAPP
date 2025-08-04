@@ -16,6 +16,8 @@ const openai = new OpenAI({
 
 });
 
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
+
 exports.getChatResponse = functions.https.onRequest(async (req, res) => {
   // Enable CORS
   res.set('Access-Control-Allow-Origin', '*');
@@ -226,37 +228,42 @@ async function generateNotificationMessage({ temp, condition, city }) {
   } // fallback
   }
 
-exports.sendMorningNotifications = async () => {
-  const db = admin.firestore();
-  const snapshot = await db.collection("deviceTokens").get();
-  const nowUTC = moment.utc();
-  const promises = [];
+  exports.sendMorningNotifications = async () => {
+    const db = admin.firestore();
+    const snapshot = await db.collection("deviceTokens").get();
+    const nowUTC = moment.utc();
+    const promises = [];
+  
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const {
+        token,
+        timezone,
+        city = 'your area',
+        weather = null,
+        lastNotifiedDate = null // Optional: used to prevent duplicates
+      } = data;
+  
+      if (!token || !timezone || !weather) return;
+  
+      const localTime = nowUTC.clone().tz(timezone);
 
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const {
-      token,
-      timezone,
-      city = 'your area',
-      weather = null
-    } = data;
 
-    if (!token || !timezone || !weather) return;
-
-    const localTime = nowUTC.clone().tz(timezone);
-
-      // const isEightAM = true;
-    const isEightAM = localTime.hour() === 8 && localTime.minute() === 0;
-
-    if (isEightAM) {
+      // const isExactlyEightAM = true;
+      const isExactlyEightAM = localTime.hour() === 8 ;
+      
+      // Avoid sending multiple times — only send once per day
+      const today = localTime.format('YYYY-MM-DD');
+      if (!isExactlyEightAM || lastNotifiedDate === today) return;
+  
       const bodyTextPromise = generateNotificationMessage({
         temp: weather.temp,
         condition: weather.condition,
         city
       });
-
+  
       promises.push(
-        bodyTextPromise.then(bodyText => {
+        bodyTextPromise.then(async bodyText => {
           const message = {
             token,
             notification: {
@@ -268,30 +275,35 @@ exports.sendMorningNotifications = async () => {
               screen: 'home'
             }
           };
-
-          return admin.messaging().send(message).catch(err => {
+  
+          try {
+            await admin.messaging().send(message);
+            // ✅ Save that we sent today
+            await db.collection("deviceTokens").doc(doc.id).update({
+              // lastNotifiedDate: today
+            });
+          } catch (err) {
             console.error("❌ FCM error for token:", token, err.message);
-          });
+          }
         })
       );
-    }
-  });
+    });
+  
+    await Promise.all(promises);
+    console.log(`✅ Sent ${promises.length} notifications`);
+  };
 
-  await Promise.all(promises);
-  console.log(`✅ Sent ${promises.length} notifications`);
-};
-
-// 🕒 Runs every 10 minutes
-exports.hourlyNotificationScheduler = onSchedule(
-  { schedule: 'every 60 minutes', timeZone: 'UTC' },
-  async () => {
-    try {
-      await exports.sendMorningNotifications();
-    } catch (err) {
-      console.error("❌ Scheduled error", err);
+  exports.hourlyNotificationScheduler = onSchedule(
+    { schedule: 'every 60 minutes', timeZone: 'UTC' },
+    async () => {
+      try {
+        await exports.sendMorningNotifications();
+      } catch (err) {
+        console.error("❌ Scheduled error", err);
+      }
     }
-  }
-);
+  );
+  
 
 // 🔬 Manual Test Endpoint (call via browser/Postman)
 exports.testMorningNotifications = onRequest(async (req, res) => {
@@ -304,7 +316,6 @@ exports.testMorningNotifications = onRequest(async (req, res) => {
   }
 });
 
-const OPENWEATHER_API_KEY = "87b449b894656bb5d85c61981ace7d25"; // Replace with your key
 
 exports.updateUserWeather = onSchedule(
   { schedule: 'every 60 minutes', timeZone: 'UTC' },
@@ -358,96 +369,41 @@ exports.testUpdateWeather = onRequest(async (req, res) => {
   }
 });
 
+exports.deleteDeviceToken = functions.https.onRequest(async (req, res) => {
+  // Enable CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
 
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
 
+  try {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
 
+    const { deviceId } = req.body;
+    if (!deviceId) return res.status(400).send('Missing deviceId');
 
-// // Alternative function for streaming responses
-// exports.getChatResponseStream = functions.https.onRequest(async (req, res) => {
-//   res.set('Access-Control-Allow-Origin', '*');
-//   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-//   res.set('Access-Control-Allow-Headers', 'Content-Type');
-//   res.set('Content-Type', 'text/event-stream');
-//   res.set('Cache-Control', 'no-cache');
-//   res.set('Connection', 'keep-alive');
+    const deviceRef = admin.firestore().collection('deviceTokens').doc(deviceId);
+    const doc = await deviceRef.get();
 
-//   if (req.method === 'OPTIONS') {
-//     res.status(204).send('');
-//     return;
-//   }
+    if (!doc.exists) {
+      return res.status(404).send('No matching device found');
+    }
 
-//   try {
-//     if (req.method !== 'POST') {
-//       return res.status(405).json({ error: 'Method not allowed' });
-//     }
+    // Update the document to remove the token field
+    await deviceRef.update({
+      token: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
-//     const { message, model = "gpt-3.5-turbo" } = req.body;
+    return res.status(200).send('Device token deleted');
+  } catch (error) {
+    console.error('Error deleting token:', error);
+    return res.status(500).send('Internal server error');
+  }
+});
 
-//     if (!message || typeof message !== 'string') {
-//       return res.status(400).json({ error: 'Message is required and must be a string' });
-//     }
-
-//     const stream = await openai.chat.completions.create({
-//       model: model,
-//       messages: [{ role: "user", content: message }],
-//       stream: true,
-//       max_tokens: 150,
-//       temperature: 0.7,
-//     });
-
-//     for await (const chunk of stream) {
-//       const content = chunk.choices[0]?.delta?.content || '';
-//       if (content) {
-//         res.write(`data: ${JSON.stringify({ content })}\n\n`);
-//       }
-//     }
-
-//     res.write('data: [DONE]\n\n');
-//     res.end();
-
-//   } catch (error) {
-//     console.error('Streaming Error:', error);
-//     res.write(`data: ${JSON.stringify({ error: 'Stream error occurred' })}\n\n`);
-//     res.end();
-//   }
-// });
-
-// Function to save device metadata (location, timezone, etc.)
-// exports.saveDeviceMeta = functions.https.onRequest(async (req, res) => {
-//   // Enable CORS
-//   res.set('Access-Control-Allow-Origin', '*');
-//   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-//   res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-//   if (req.method === 'OPTIONS') {
-//     return res.status(204).send('');
-//   }
-
-//   if (req.method !== 'POST') {
-//     return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-//   }
-
-//   const { deviceId, timezone, location, city } = req.body;
-
-//   if (!deviceId) {
-//     return res.status(400).json({ success: false, error: 'Missing deviceId' });
-//   }
-
-//   try {
-//     // Save device metadata to the deviceTokens collection instead of deviceMeta
-//     // This ensures all device data is in one place
-//     await admin.firestore().collection('deviceTokens').doc(deviceId).set({
-//       deviceId,
-//       timezone,
-//       location,
-//       city,
-//       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-//     }, { merge: true });
-
-//     console.log(`✅ Device metadata saved for device: ${deviceId}`);
-//     return res.status(200).json({ success: true, message: 'Device metadata saved successfully' });
-//   } catch (error) {
-//     console.error('❌ Error saving device metadata:', error);
-//     return res.status(500).json({ success: false, error: 'Failed to save device metadata' });
-//   }
-// });

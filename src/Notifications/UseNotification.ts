@@ -44,7 +44,7 @@ export const requestNotificationPermission = async () => {
       console.log('Sending FCM token to backend...');
       const response = await fetch('https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/saveDeviceToken', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ deviceId, token })
       });
       
@@ -133,4 +133,34 @@ export const useNotificationTapHandler = () => {
       backgroundSubscription();
     };
   }, []);
+};
+
+export const disableNotifications = async () => {
+  try {
+    const deviceId = await DeviceInfo.getUniqueId();
+    
+    // Delete token from backend
+    const response = await fetch('https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/deleteDeviceToken', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ deviceId })
+    });
+
+    if (!response.ok) {
+      console.error('Server response:', await response.text());
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+
+    // Unregister from FCM
+    await messaging().deleteToken();
+    
+    console.log('✅ Notifications disabled successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to disable notifications:', error);
+    return false;
+  }
 };

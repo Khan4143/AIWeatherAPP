@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, StatusBar, Platform, ViewStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -22,13 +22,24 @@ export type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const defaultTabBarStyle = {
-  height: adjust(60),
-  paddingTop: adjust(5),
+const defaultTabBarStyle: ViewStyle = {
+  height: adjust(55),
   backgroundColor: '#fff',
-  borderTopWidth: 1,
-  borderTopColor: '#eee',
+  paddingBottom: Platform.OS === 'ios' ? adjust(15) : adjust(8),
+  paddingTop: adjust(8),
+  borderTopWidth: 0,
+  elevation: 8,
+  shadowColor: '#000',
+  borderRadius: adjust(15),
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  position: 'absolute',
+  left: adjust(16),
+  right: adjust(16),
+  // bottom: adjust(10), // Optional spacing from bottom
 };
+
 
 const TabNavigator = () => {
   useEffect(() => {
@@ -39,75 +50,76 @@ const TabNavigator = () => {
   }, []);
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#4361EE',
-        tabBarInactiveTintColor: '#999',
-        tabBarLabelStyle: {
-          fontSize: adjust(10),
-          fontWeight: '500',
-          marginBottom: adjust(5),
-        },
-        tabBarStyle: defaultTabBarStyle,
-        // This is the key option that allows the tab bar to be hidden by keyboard
-        tabBarHideOnKeyboard: true,
-      }}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={ForecastScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home" size={adjust(20)} color={color} />
-          ),
+    <>
+      <StatusBar backgroundColor="#000000" barStyle="light-content" />
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#4361EE',
+          tabBarInactiveTintColor: '#999',
+          tabBarLabelStyle: {
+            fontSize: adjust(10),
+            fontWeight: '600',
+            marginTop: adjust(3),
+            marginBottom: Platform.OS === 'ios' ? adjust(10) : adjust(3),
+          },
+          tabBarStyle: defaultTabBarStyle,
+          tabBarHideOnKeyboard: true,
         }}
-      />
-      <Tab.Screen
-        name="Assistant"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Assistant',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="robot-outline" size={adjust(24)} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="PlanningTab"
-        component={PlanningScreen}
-        options={{
-          tabBarLabel: 'Plan Event',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="calendar-plus" size={adjust(22)} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Commute"
-        component={CommuteScreen}
-        options={{
-          tabBarLabel: 'Commute',
-          tabBarIcon: ({ color }) => (
-            <MaterialCommunityIcons name="chat" size={adjust(20)} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <FontAwesome5 name="user" size={adjust(18)} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="HomeTab"
+          component={ForecastScreen}
+          options={{
+            tabBarLabel: 'Home',
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="home" size={adjust(20)} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Assistant"
+          component={HomeScreen}
+          options={{
+            tabBarLabel: 'Assistant',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="robot-outline" size={adjust(22)} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="PlanningTab"
+          component={PlanningScreen}
+          options={{
+            tabBarLabel: 'Plan Event',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="calendar-plus" size={adjust(20)} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Commute"
+          component={CommuteScreen}
+          options={{
+            tabBarLabel: 'Commute',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="chat" size={adjust(20)} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            tabBarLabel: 'Profile',
+            tabBarIcon: ({ color }) => (
+              <FontAwesome5 name="user" size={adjust(18)} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </>
   );
 };
 
 export default TabNavigator;
-
-const styles = StyleSheet.create({});

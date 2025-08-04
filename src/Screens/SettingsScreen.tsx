@@ -31,6 +31,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { validateCity } from '../services/weatherService';
 import debounce from 'lodash/debounce';
 import { useWeatherContext } from '../contexts/WeatherContext';
+import { requestNotificationPermission, disableNotifications } from '../Notifications/UseNotification';
+import messaging from '@react-native-firebase/messaging';
+import DeviceInfo from 'react-native-device-info';
 
 // Storage keys (should match UserDataManager's keys)
 const STORAGE_KEYS = {
@@ -274,7 +277,8 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   const formScrollViewRef = useRef<ScrollView>(null);
   const [placesResults, setPlacesResults] = useState<any[]>([]);
   const [isPlacesLoading, setIsPlacesLoading] = useState(false);
-  
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
   // Load user data on component mount
   useEffect(() => {
     loadUserData();
@@ -1566,6 +1570,63 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     }
   };
 
+  // Check notification permission status on mount
+  useEffect(() => {
+    checkNotificationStatus();
+  }, []);
+
+  const checkNotificationStatus = async () => {
+    try {
+      const authStatus = await messaging().hasPermission();
+      const enabled = 
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      setNotificationsEnabled(enabled);
+    } catch (error) {
+      console.error('Error checking notification status:', error);
+    }
+  };
+
+  const handleNotificationToggle = async (value: boolean) => {
+    if (value) {
+      // Enable notifications
+      const granted = await requestNotificationPermission();
+      setNotificationsEnabled(granted);
+    } else {
+      // Show confirmation dialog before disabling
+      Alert.alert(
+        'Disable Notifications',
+        'Are you sure you want to disable notifications? You might miss important weather updates.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => setNotificationsEnabled(true)
+          },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const success = await disableNotifications();
+                if (success) {
+                  setNotificationsEnabled(false);
+                  showToast('Notifications disabled successfully');
+                } else {
+                  throw new Error('Failed to disable notifications');
+                }
+              } catch (error) {
+                console.error('Error disabling notifications:', error);
+                showToast('Failed to disable notifications', 'error');
+                setNotificationsEnabled(true);
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
   return (
     <>
       <LinearGradient
@@ -1657,20 +1718,20 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               />
             </View>
             
-            {/* Dark Mode */}
+            {/* Notifications Toggle (replacing Dark Mode) */}
             <View style={styles.settingToggleRow}>
               <View style={styles.settingIconContainer}>
-                <Ionicons name="moon-outline" size={adjust(20)} color="#4361EE" />
+                <Ionicons name="notifications-outline" size={adjust(20)} color="#4361EE" />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Dark Mode</Text>
-                <Text style={styles.settingDescription}>Switch between light and dark theme</Text>
+                <Text style={styles.settingLabel}>Notifications</Text>
+                <Text style={styles.settingDescription}>Receive weather alerts and updates</Text>
               </View>
               <Switch
-                value={darkMode}
-                onValueChange={setDarkMode}
+                value={notificationsEnabled}
+                onValueChange={handleNotificationToggle}
                 trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
-                thumbColor={darkMode ? '#4361EE' : '#f4f3f4'}
+                thumbColor={notificationsEnabled ? '#4361EE' : '#f4f3f4'}
                 ios_backgroundColor="#e0e0e0"
               />
             </View>
@@ -1788,64 +1849,64 @@ const styles = StyleSheet.create({
     paddingVertical: adjust(15),
   },
   headerTitle: {
-    fontSize: adjust(18),
+    fontSize: adjust(16),
     fontWeight: '600',
     color: '#333',
   },
   backButton: {
-    width: adjust(40),
-    height: adjust(40),
-    borderRadius: adjust(20),
+    width: adjust(32),
+    height: adjust(32),
+    borderRadius: adjust(16),
     justifyContent: 'center',
     alignItems: 'center',
   },
   transparent: {
-    width: adjust(40),
-    height: adjust(40),
+    width: adjust(32),
+    height: adjust(32),
   },
   sectionTitle: {
-    fontSize: adjust(15),
+    fontSize: adjust(13),
     fontWeight: '600',
     color: '#333',
-    marginTop: adjust(16),
-    marginBottom: adjust(8),
+    marginTop: adjust(12),
+    marginBottom: adjust(6),
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: adjust(12),
-    padding: adjust(15),
-    marginBottom: adjust(10),
+    borderRadius: adjust(10),
+    padding: adjust(12),
+    marginBottom: adjust(8),
   },
   settingToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderRadius: adjust(12),
-    padding: adjust(15),
-    marginBottom: adjust(10),
+    borderRadius: adjust(10),
+    padding: adjust(12),
+    marginBottom: adjust(8),
   },
   settingIconContainer: {
-    width: adjust(40),
-    height: adjust(40),
-    borderRadius: adjust(20),
+    width: adjust(32),
+    height: adjust(32),
+    borderRadius: adjust(16),
     backgroundColor: 'rgba(67, 97, 238, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: adjust(15),
+    marginRight: adjust(12),
   },
   settingTextContainer: {
     flex: 1,
   },
   settingLabel: {
-    fontSize: adjust(14),
+    fontSize: adjust(13),
     fontWeight: '500',
     color: '#333',
     marginBottom: adjust(2),
   },
   settingDescription: {
-    fontSize: adjust(12),
+    fontSize: adjust(11),
     color: '#666',
   },
   dangerText: {
@@ -1878,8 +1939,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '90%',
     backgroundColor: 'white',
-    borderRadius: adjust(14),
-    padding: adjust(16),
+    borderRadius: adjust(12),
+    padding: adjust(14),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1888,28 +1949,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 4,
-    maxWidth: adjust(320),
+    maxWidth: adjust(300),
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: adjust(12),
-    paddingBottom: adjust(8),
+    marginBottom: adjust(10),
+    paddingBottom: adjust(6),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
-    fontSize: adjust(16),
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
   },
   modalDescription: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#666',
-    marginBottom: adjust(20),
-    lineHeight: adjust(20),
+    marginBottom: adjust(16),
+    lineHeight: adjust(18),
   },
   modalButton: {
     backgroundColor: '#4361EE',
@@ -1951,8 +2012,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   formScrollView: {
-    maxHeight: adjust(420),
-    marginBottom: adjust(10),
+    maxHeight: adjust(380),
+    marginBottom: adjust(8),
   },
   formScrollViewExtended: {
     maxHeight: Platform.OS === 'ios' ? adjust(300) : adjust(350),
@@ -1961,16 +2022,16 @@ const styles = StyleSheet.create({
     marginBottom: adjust(15),
   },
   formLabel: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
-    marginBottom: adjust(5),
+    marginBottom: adjust(4),
   },
   formInput: {
     backgroundColor: '#f9f9f9',
-    borderRadius: adjust(8),
-    padding: adjust(12),
-    fontSize: adjust(14),
+    borderRadius: adjust(6),
+    padding: adjust(10),
+    fontSize: adjust(12),
     borderWidth: 1,
     borderColor: '#eee',
     color: '#333',
@@ -1991,7 +2052,7 @@ const styles = StyleSheet.create({
     marginBottom: adjust(4),
     borderWidth: 1,
     borderColor: '#eee',
-    minWidth: adjust(60),
+    minWidth: adjust(50),
     width: '30%',
   },
   selectedOptionButton: {
@@ -1999,7 +2060,7 @@ const styles = StyleSheet.create({
     borderColor: '#4361EE',
   },
   optionText: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
   },
   selectedOptionText: {
@@ -2023,7 +2084,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: adjust(6),
     padding: adjust(8),
-    marginBottom: adjust(8),
+    marginBottom: adjust(6),
     borderWidth: 1,
     borderColor: '#eee',
     alignItems: 'center',
@@ -2035,10 +2096,10 @@ const styles = StyleSheet.create({
     borderColor: '#4361EE',
   },
   activityLabel: {
-    fontSize: adjust(12),
+    fontSize: adjust(11),
     fontWeight: '500',
     color: '#333',
-    marginLeft: adjust(5),
+    marginLeft: adjust(4),
   },
   selectedActivityLabel: {
     color: '#fff',
@@ -2050,7 +2111,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9f9f9',
-    borderRadius: adjust(8),
+    borderRadius: adjust(6),
     padding: adjust(8),
     marginBottom: adjust(6),
     borderWidth: 1,
@@ -2081,13 +2142,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   styleLabel: {
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
     marginBottom: adjust(1),
   },
   styleDescription: {
-    fontSize: adjust(11),
+    fontSize: adjust(10),
     color: '#666',
   },
   selectedStyleLabel: {
@@ -2105,13 +2166,13 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: '#f9f9f9',
     borderRadius: adjust(6),
-    padding: adjust(12),
-    marginBottom: adjust(8),
+    padding: adjust(10),
+    marginBottom: adjust(6),
     borderWidth: 1,
     borderColor: '#eee',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: adjust(44),
+    minHeight: adjust(36),
   },
   selectedConcernOption: {
     backgroundColor: '#4361EE',
@@ -2125,7 +2186,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   concernLabel: {
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     fontWeight: '500',
     color: '#333',
     textAlign: 'center',
@@ -2139,9 +2200,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9f9f9',
-    borderRadius: adjust(8),
-    padding: adjust(10),
-    marginBottom: adjust(10),
+    borderRadius: adjust(6),
+    padding: adjust(8),
+    marginBottom: adjust(8),
     borderWidth: 1,
     borderColor: '#eee',
   },
@@ -2150,9 +2211,9 @@ const styles = StyleSheet.create({
     borderColor: '#4361EE',
   },
   activityPreferenceLabel: {
-    fontSize: adjust(12),
+    fontSize: adjust(11),
     color: '#333',
-    marginLeft: adjust(10),
+    marginLeft: adjust(8),
   },
   selectedActivityPreferenceLabel: {
     color: '#fff',
@@ -2164,9 +2225,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9f9f9',
-    borderRadius: adjust(16),
-    paddingVertical: adjust(6),
-    paddingHorizontal: adjust(10),
+    borderRadius: adjust(12),
+    paddingVertical: adjust(4),
+    paddingHorizontal: adjust(8),
     marginRight: adjust(6),
     borderWidth: 1,
     borderColor: '#eee',
@@ -2176,7 +2237,7 @@ const styles = StyleSheet.create({
     borderColor: '#4361EE',
   },
   commuteLabel: {
-    fontSize: adjust(12),
+    fontSize: adjust(11),
     color: '#333',
     marginLeft: adjust(4),
   },
@@ -2200,13 +2261,13 @@ const styles = StyleSheet.create({
     padding: adjust(5),
   },
   timeDisplay: {
-    width: adjust(36),
-    height: adjust(36),
+    width: adjust(32),
+    height: adjust(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
   timeText: {
-    fontSize: adjust(18),
+    fontSize: adjust(16),
     fontWeight: '600',
     color: '#333',
   },
@@ -2225,8 +2286,8 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
   },
   ampmButton: {
-    paddingVertical: adjust(6),
-    paddingHorizontal: adjust(10),
+    paddingVertical: adjust(4),
+    paddingHorizontal: adjust(8),
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f9f9f9',
@@ -2235,7 +2296,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4361EE',
   },
   ampmText: {
-    fontSize: adjust(12),
+    fontSize: adjust(11),
     fontWeight: '500',
     color: '#333',
   },
@@ -2251,35 +2312,35 @@ const styles = StyleSheet.create({
   cancelButtonSmall: {
     backgroundColor: '#F2F2F2',
     borderRadius: adjust(6),
-    paddingVertical: adjust(8),
-    paddingHorizontal: adjust(12),
+    paddingVertical: adjust(6),
+    paddingHorizontal: adjust(10),
     flex: 1,
-    marginRight: adjust(10),
+    marginRight: adjust(8),
     alignItems: 'center',
   },
   saveButtonSmall: {
     backgroundColor: '#4361EE',
     borderRadius: adjust(6),
-    paddingVertical: adjust(8),
-    paddingHorizontal: adjust(12),
+    paddingVertical: adjust(6),
+    paddingHorizontal: adjust(10),
     flex: 1,
     alignItems: 'center',
   },
   saveButtonText: {
     color: '#fff',
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     fontWeight: '500',
     textAlign: 'center',
   },
   toast: {
     position: 'absolute',
-    bottom: adjust(50),
+    bottom: adjust(40),
     left: '10%',
     right: '10%',
     backgroundColor: 'white',
-    paddingVertical: adjust(12),
-    paddingHorizontal: adjust(16),
-    borderRadius: adjust(8),
+    paddingVertical: adjust(10),
+    paddingHorizontal: adjust(14),
+    borderRadius: adjust(6),
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -2298,7 +2359,7 @@ const styles = StyleSheet.create({
     borderLeftColor: '#FF3B30',
   },
   toastText: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
     fontWeight: '500',
   },
@@ -2313,13 +2374,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   locationInput: {
-    height: adjust(42),
-    paddingHorizontal: adjust(12),
-    paddingLeft: adjust(35),
-    fontSize: adjust(13),
+    height: adjust(36),
+    paddingHorizontal: adjust(10),
+    paddingLeft: adjust(30),
+    fontSize: adjust(12),
     color: '#333',
     backgroundColor: '#f8f9fa',
-    borderRadius: adjust(8),
+    borderRadius: adjust(6),
     borderColor: '#e0e0e0',
     borderWidth: 1,
     zIndex: 1,
@@ -2350,8 +2411,8 @@ const styles = StyleSheet.create({
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: adjust(12),
-    paddingHorizontal: adjust(16),
+    paddingVertical: adjust(8),
+    paddingHorizontal: adjust(12),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     backgroundColor: '#fff',
@@ -2361,12 +2422,12 @@ const styles = StyleSheet.create({
     marginLeft: adjust(8),
   },
   suggestionMainText: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
     fontWeight: '500',
   },
   suggestionSecondaryText: {
-    fontSize: adjust(12),
+    fontSize: adjust(10),
     color: '#666',
     marginTop: adjust(2),
   },
@@ -2377,8 +2438,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    marginLeft: adjust(10),
-    fontSize: adjust(14),
+    marginLeft: adjust(8),
+    fontSize: adjust(12),
     color: '#4361EE',
   },
   emptyResultContainer: {
@@ -2386,7 +2447,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyResultText: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#666',
   },
   keyboardSpacer: {

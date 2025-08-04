@@ -257,7 +257,7 @@ const OnboardingScreen = ({ navigation }: { navigation: any }) => {
       }
       
       // Navigate to next screen
-      navigation.navigate('Intro');
+      navigation.navigate('NotificationScreen');
     } catch (error) {
       console.error('Error during permission setup:', error);
       Alert.alert(
@@ -265,7 +265,7 @@ const OnboardingScreen = ({ navigation }: { navigation: any }) => {
         "There was an error setting up notifications and location. You can try again in the settings later.",
         [{ text: 'OK' }]
       );
-      navigation.navigate('Intro');
+      navigation.navigate('NotificationScreen');
     } finally {
       setIsLoading(false);
     }
@@ -273,7 +273,7 @@ const OnboardingScreen = ({ navigation }: { navigation: any }) => {
 
   const handleMaybeLater = () => {
     // Navigate but don't enable notifications
-    navigation.navigate('Intro');
+    navigation.navigate('NotificationScreen');
   };
 
   const handleContentLayout = (event: any) => {

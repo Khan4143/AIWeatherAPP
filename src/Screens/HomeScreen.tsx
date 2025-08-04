@@ -28,37 +28,38 @@ import { PreferenceData } from '../Screens/PreferenceScreen';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/Navigations';
+import { getMaterialWeatherIcon, getFeatherWeatherIcon } from '../services/weatherService';
 
-// Storage key for saved cities
-const SAVED_CITIES_KEY = 'skylar_saved_cities';
+// // Storage key for saved cities
+// const SAVED_CITIES_KEY = 'skylar_saved_cities';
 
-// List of popular cities available in OpenWeather API
-const POPULAR_CITIES = [
-  'New York, US',
-  'Los Angeles, US',
-  'London, GB',
-  'Tokyo, JP',
-  'Paris, FR',
-  'Berlin, DE',
-  'Sydney, AU',
-  'Mumbai, IN',
-  'Beijing, CN',
-  'Rio de Janeiro, BR',
-];
+// // List of popular cities available in OpenWeather API
+// const POPULAR_CITIES = [
+//   'New York, US',
+//   'Los Angeles, US',
+//   'London, GB',
+//   'Tokyo, JP',
+//   'Paris, FR',
+//   'Berlin, DE',
+//   'Sydney, AU',
+//   'Mumbai, IN',
+//   'Beijing, CN',
+//   'Rio de Janeiro, BR',
+// ];
 
 // Type definition for city objects
-interface CityObject {
-  key: string;
-  display: string;
-}
+// interface CityObject {
+//   key: string;
+//   display: string;
+// }
 
-// Helper function to get the time of day greeting
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-};
+// // Helper function to get the time of day greeting
+// const getGreeting = () => {
+//   const hour = new Date().getHours();
+//   if (hour < 12) return 'Good morning';
+//   if (hour < 18) return 'Good afternoon';
+//   return 'Good evening';
+// };
 
 // Helper function to format time from Unix timestamp - Update to include AM/PM
 const formatTime = (timestamp: number) => {
@@ -75,30 +76,7 @@ const formatHour = (timestamp: number) => {
 // Helper function to get weather icon based on OpenWeather icon code - for Feather icons
 const getWeatherIcon = (iconCode: string) => {
   if (!iconCode) return 'cloud';
-  
-  const iconMap: {[key: string]: string} = {
-    '01d': 'sun', // clear sky day
-    '01n': 'moon', // clear sky night
-    '02d': 'cloud-sun', // few clouds day
-    '02n': 'cloud-moon', // few clouds night
-    '03d': 'cloud', // scattered clouds day
-    '03n': 'cloud', // scattered clouds night
-    '04d': 'cloud', // broken clouds day
-    '04n': 'cloud', // broken clouds night
-    '09d': 'cloud-rain', // shower rain day
-    '09n': 'cloud-rain', // shower rain night
-    '10d': 'cloud-drizzle', // rain day
-    '10n': 'cloud-drizzle', // rain night
-    '11d': 'cloud-lightning', // thunderstorm day
-    '11n': 'cloud-lightning', // thunderstorm night
-    '13d': 'cloud-snow', // snow day
-    '13n': 'cloud-snow', // snow night
-    '50d': 'wind', // mist day
-    '50n': 'wind', // mist night
-  };
-  
-  // Default icon if we don't have a mapping
-  return iconMap[iconCode] || 'cloud';
+  return getFeatherWeatherIcon(iconCode);
 };
 
 // Helper function to get MaterialCommunityIcons weather icons
@@ -108,92 +86,50 @@ const getWeatherIconMaterial = (iconCode: string) => {
   // Log the icon code for debugging
   console.log('Weather icon code received:', iconCode);
   
-  // Enhanced icon mapping with more accurate weather states
-  const materialIconMap: {[key: string]: string} = {
-    // Clear sky
-    '01d': 'weather-sunny', // clear sky day
-    '01n': 'weather-night', // clear sky night
-    
-    // Few clouds (11-25%)
-    '02d': 'weather-partly-cloudy', // few clouds day
-    '02n': 'weather-night-partly-cloudy', // few clouds night
-    
-    // Scattered clouds (25-50%)
-    '03d': 'weather-cloudy', // scattered clouds day
-    '03n': 'weather-cloudy', // scattered clouds night
-    
-    // Broken/overcast clouds (51-100%)
-    '04d': 'weather-cloudy', // broken clouds day
-    '04n': 'weather-cloudy', // broken clouds night
-    
-    // Shower rain - intermittent intense rain
-    '09d': 'weather-pouring', // shower rain day
-    '09n': 'weather-pouring', // shower rain night
-    
-    // Rain - continuous precipitation
-    '10d': 'weather-rainy', // rain day
-    '10n': 'weather-rainy', // rain night
-    
-    // Thunderstorm
-    '11d': 'weather-lightning', // thunderstorm day
-    '11n': 'weather-lightning', // thunderstorm night
-    
-    // Snow
-    '13d': 'weather-snowy', // snow day
-    '13n': 'weather-snowy', // snow night
-    
-    // Mist/fog/haze
-    '50d': 'weather-fog', // mist day
-    '50n': 'weather-fog', // mist night
-  };
-  
-  // Get the mapped icon or fall back to cloudy
-  const iconName = materialIconMap[iconCode] || 'weather-cloudy';
+  // Get the mapped icon
+  const iconName = getMaterialWeatherIcon(iconCode);
   console.log('Mapped to icon:', iconName);
   return iconName;
 };
 
-// Helper to get appropriate icon color
+// Helper to get appropriate icon color (same as ForecastScreen)
 const getWeatherIconColor = (iconCode: string) => {
-  if (!iconCode) return '#87CEEB'; // Default sky blue
-  
-  // Log the icon code for color selection
-  console.log('Selecting color for icon code:', iconCode);
+  if (!iconCode) return '#4361EE'; // Default color
   
   // Extract the condition code and day/night indicator
   const conditionCode = iconCode.substring(0, 2);
   const isDayTime = iconCode.endsWith('d');
   
-  // More nuanced color mapping based on weather condition and time of day
+  // Color mapping based on weather condition and time of day
   switch(conditionCode) {
     case '01': // clear sky
-      return isDayTime ? '#FFD700' : '#4A6FA5'; // gold for day, dark blue for night
+      return isDayTime ? '#FF9500' : '#3A4CA8'; // orange for day, navy for night
     
     case '02': // few clouds
-      return isDayTime ? '#87CEEB' : '#4A6FA5'; // sky blue for day, dark blue for night
+      return isDayTime ? '#4361EE' : '#3A4CA8'; // app blue for day, darker blue for night
     
     case '03': // scattered clouds
     case '04': // broken clouds
-      return isDayTime ? '#A9A9A9' : '#6C757D'; // gray for day, darker gray for night
+      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
     
     case '09': // shower rain
-      return isDayTime ? '#4169E1' : '#364FC7'; // royal blue for day, darker blue for night
+      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
     
     case '10': // rain
-      return isDayTime ? '#4682B4' : '#0D47A1'; // steel blue for day, navy for night
+      return isDayTime ? '#5D9CEC' : '#2B3990'; // lighter blue for day, darker blue for night
     
     case '11': // thunderstorm
       return isDayTime ? '#9370DB' : '#6A0DAD'; // medium purple for day, darker purple for night
     
     case '13': // snow
-      return isDayTime ? '#E0FFFF' : '#B0E0E6'; // light cyan for day, powder blue for night
+      return isDayTime ? '#5D9CEC' : '#2B3990'; // light blue for day, darker blue for night
     
     case '50': // mist/fog
-      return isDayTime ? '#708090' : '#556677'; // slate gray for day, darker slate for night
+      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
   }
   
-  // Default fallback
-  return isDayTime ? '#87CEEB' : '#4A6FA5'; // sky blue for day, dark blue for night
+  // Default fallback - use app's primary blue
+  return '#4361EE';
 };
 
 const styles = StyleSheet.create({
@@ -220,8 +156,8 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: adjust(12), // Reduced from 20
-    paddingBottom: adjust(16), // Reduced from 20
+    paddingHorizontal: adjust(12),
+    paddingBottom: adjust(80), // Add padding for tab bar
   },
   header: {
     marginTop: adjust(12), // Reduced from 10
@@ -229,7 +165,7 @@ const styles = StyleSheet.create({
   },
   locationContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     marginBottom: adjust(10),
   },
   headerLocationText: {
@@ -237,6 +173,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginLeft: adjust(4), // Reduced from 5
+    marginTop: adjust(1),
   },
   weatherCard: {
     backgroundColor: '#fff',
@@ -671,11 +608,18 @@ const HomeScreen = () => {
 
   // Fetch concise Gemini responses for card summaries - with rate limiting
   useEffect(() => {
+    console.log('🔄 HomeScreen useEffect triggered - weatherSignature:', weatherSignature);
+    
     const fetchOutfitCard = async () => {
       if (currentWeather) {
         const now = Date.now();
-        // Only update if we haven't updated in the last hour or weather has changed significantly
-        if (now - lastOutfitUpdate > oneHourMs || !outfitCardText || outfitCardText.includes('Unable to fetch')) {
+        // More aggressive caching - only fetch if we have no data or it's been more than 2 hours
+        const shouldFetchOutfit = !outfitCardText || 
+          outfitCardText.includes('Unable to fetch') || 
+          (now - lastOutfitUpdate > twoHoursMs);
+        
+        if (shouldFetchOutfit) {
+          console.log('🔄 Fetching outfit card...');
         setOutfitCardLoading(true);
         try {
           const res = await generateResponse(
@@ -692,15 +636,20 @@ const HomeScreen = () => {
           setOutfitCardLoading(false);
           }
         } else {
-          console.log("HomeScreen - Skipping outfit card update, using cached data");
+          console.log("⏭️ Skipping outfit card update, using cached data");
         }
       }
     };
     const fetchHealthCard = async () => {
       if (currentWeather) {
         const now = Date.now();
-        // Only update if we haven't updated in the last hour or weather has changed significantly
-        if (now - lastHealthUpdate > oneHourMs || !healthCardText || healthCardText.includes('Unable to fetch')) {
+        // More aggressive caching - only fetch if we have no data or it's been more than 2 hours
+        const shouldFetchHealth = !healthCardText || 
+          healthCardText.includes('Unable to fetch') || 
+          (now - lastHealthUpdate > twoHoursMs);
+        
+        if (shouldFetchHealth) {
+          console.log('🔄 Fetching health card...');
         setHealthCardLoading(true);
         try {
           const res = await generateResponse(
@@ -717,25 +666,28 @@ const HomeScreen = () => {
           setHealthCardLoading(false);
           }
         } else {
-          console.log("HomeScreen - Skipping health card update, using cached data");
+          console.log("⏭️ Skipping health card update, using cached data");
         }
       }
     };
     fetchOutfitCard();
     fetchHealthCard();
-  }, [currentWeather?.temperature, currentWeather?.description, currentWeather?.humidity]);
+  }, [weatherSignature]); // Use weatherSignature instead of individual weather properties
 
   // Fetch Gemini responses only when weather changes
   useEffect(() => {
     if (!currentWeather) return;
     let cancelled = false;
+    let isFetchingDetailed = false;
 
     // Define a threshold for when we should refresh the data
     const now = Date.now();
     
-    // Only fetch new data if it's been more than 2 hours or we don't have data yet
-    if (now - lastUpdateRef.current > twoHoursMs || !outfitGemini || !healthGemini) {
+    // Only fetch new data if it's been more than 3 hours or we don't have data yet
+    if ((now - lastUpdateRef.current > (3 * 60 * 60 * 1000) || !outfitGemini || !healthGemini) && !isFetchingDetailed) {
+      console.log('🔄 Fetching detailed tips...');
       lastUpdateRef.current = now;
+      isFetchingDetailed = true;
       
     const fetchOutfit = async () => {
       setOutfitLoading(true);
@@ -771,7 +723,7 @@ const HomeScreen = () => {
     fetchOutfit();
     fetchHealth();
     } else {
-      console.log("HomeScreen - Skipping detailed tips update, using cached data");
+      console.log("⏭️ Skipping detailed tips update, using cached data");
     }
     return () => { cancelled = true; };
   }, [weatherSignature]);
@@ -815,25 +767,34 @@ const HomeScreen = () => {
               </TouchableOpacity>
             </View>
             <View style={styles.modalContent}>
-              <Text style={styles.modalText}>
-                Current temperature is {currentWeather?.temperature.toFixed(1)}°<Text>{currentWeather?.windSpeed ? ` with ${currentWeather?.windSpeed < 10 ? 'light' : 'strong'} wind (${currentWeather?.windSpeed.toFixed(1)}mph)` : ''}</Text>
-              </Text>
-              <View style={styles.modalItem}>
-                <Feather name="droplet" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
-                <Text style={styles.modalItemText}>Humidity: {currentWeather?.humidity || 65}%</Text>
-              </View>
-              <View style={styles.modalItem}>
-                <Feather name="thermometer" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
-                <Text style={styles.modalItemText}>Feels like: {currentWeather?.feelsLike.toFixed(1) || 74}°</Text>
-              </View>
-              <View style={styles.modalItem}>
-                <MaterialCommunityIcons name="weather-sunset-up" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
-                <Text style={styles.modalItemText}>Sunrise: {currentWeather?.sunrise ? formatTime(currentWeather.sunrise) : '6:24 AM'}</Text>
-              </View>
-              <View style={styles.modalItem}>
-                <MaterialCommunityIcons name="weather-sunset-down" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
-                <Text style={styles.modalItemText}>Sunset: {currentWeather?.sunset ? formatTime(currentWeather.sunset) : '8:15 PM'}</Text>
-              </View>
+              {(() => {
+                const currentHourData = getCurrentHourForecast();
+                const dailyData = forecast?.daily?.[0];
+                
+                return (
+                  <>
+                    <Text style={styles.modalText}>
+                      Current temperature is {currentHourData?.temperature.day.toFixed(1) || '--'}°<Text>{currentHourData?.windSpeed ? ` with ${currentHourData.windSpeed < 10 ? 'light' : 'strong'} wind (${currentHourData.windSpeed.toFixed(1)}mph)` : ''}</Text>
+                    </Text>
+                    <View style={styles.modalItem}>
+                      <Feather name="droplet" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
+                      <Text style={styles.modalItemText}>Humidity: {currentHourData?.humidity || 65}%</Text>
+                    </View>
+                    <View style={styles.modalItem}>
+                      <Feather name="thermometer" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
+                      <Text style={styles.modalItemText}>Feels like: {currentHourData?.feelsLike.day.toFixed(1) || 74}°</Text>
+                    </View>
+                    <View style={styles.modalItem}>
+                      <MaterialCommunityIcons name="weather-sunset-up" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
+                      <Text style={styles.modalItemText}>Sunrise: {dailyData?.sunrise ? formatTime(dailyData.sunrise) : '6:24 AM'}</Text>
+                    </View>
+                    <View style={styles.modalItem}>
+                      <MaterialCommunityIcons name="weather-sunset-down" size={adjust(14)} color="#4361EE" style={styles.modalItemIcon} />
+                      <Text style={styles.modalItemText}>Sunset: {dailyData?.sunset ? formatTime(dailyData.sunset) : '8:15 PM'}</Text>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           </View>
         );
@@ -939,10 +900,10 @@ const HomeScreen = () => {
 
   // Helper function to get proper high/low temperatures
   const getMinMaxTemps = () => {
-    if (!currentWeather) return { high: '--', low: '--' };
+    if (!forecast) return { high: '--', low: '--' };
     
     // If we have forecast data, extract the real min/max for today
-    if (forecast && forecast.daily && forecast.daily.length > 0) {
+    if (forecast.daily && forecast.daily.length > 0) {
       const todayForecast = forecast.daily[0];
       if (todayForecast.temperature.max !== todayForecast.temperature.min) {
         return {
@@ -952,15 +913,20 @@ const HomeScreen = () => {
       }
     }
     
-    // If min and max temps from current weather are the same or not meaningful,
-    // create a range around the current temperature
-    const baseTemp = currentWeather.temperature;
-    const variation = Math.max(2, baseTemp * 0.1); // Use at least 2 degrees variation
+    // If min and max temps are the same or not meaningful,
+    // create a range around the current hour's temperature
+    const currentHourData = getCurrentHourForecast();
+    if (currentHourData) {
+      const baseTemp = currentHourData.temperature.day;
+      const variation = Math.max(2, baseTemp * 0.1); // Use at least 2 degrees variation
+      
+      return {
+        high: Math.round(baseTemp + variation).toString(),
+        low: Math.round(baseTemp - variation).toString()
+      };
+    }
     
-    return {
-      high: Math.round(baseTemp + variation).toString(),
-      low: Math.round(baseTemp - variation).toString()
-    };
+    return { high: '--', low: '--' };
   };
 
   // Update the handleLocationPress function
@@ -971,9 +937,9 @@ const HomeScreen = () => {
     });
   };
 
-  if (isLoading && !currentWeather) {
+  if (isLoading && !forecast) {
     return (
-      <View style={styles.safeArea}>
+      <View style={{ flex: 1, paddingBottom: adjust(85) }}>
         <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
         <LinearGradient
           colors={['#b3d4ff', '#5c85e6']}
@@ -989,14 +955,72 @@ const HomeScreen = () => {
     );
   }
 
-  // Determine weather description for info card
-  const getWeatherDescription = () => {
-    if (!currentWeather) return <Text style={styles.infoText}>Perfect weather for your 7 AM run</Text>;
+  // Get current hour's forecast data
+  const getCurrentHourForecast = () => {
+    if (!forecast?.hourly || forecast.hourly.length === 0) return null;
     
-    const temp = currentWeather.temperature;
-    const windSpeed = currentWeather.windSpeed || 0;
-    const description = currentWeather.description || '';
-    const icon = currentWeather.icon || '';
+    const now = new Date();
+    const currentHour = now.getHours();
+    
+    // Find the forecast entry for the current hour
+    const currentHourForecast = forecast.hourly.find(hour => {
+      const hourDate = new Date(hour.date * 1000);
+      return hourDate.getHours() === currentHour;
+    });
+    
+    // If not found, return the first hour (closest to current time)
+    return currentHourForecast || forecast.hourly[0];
+  };
+
+  // Generate accurate weather description based on icon code
+  const getAccurateWeatherDescription = (iconCode: string): string => {
+    if (!iconCode) return 'Unknown weather';
+    
+    const conditionCode = iconCode.substring(0, 2);
+    const isDayTime = iconCode.endsWith('d');
+    
+    switch(conditionCode) {
+      case '01': // clear sky
+        return isDayTime ? 'Clear sky' : 'Clear night';
+      
+      case '02': // few clouds
+        return isDayTime ? 'Partly cloudy' : 'Partly cloudy night';
+      
+      case '03': // scattered clouds
+        return isDayTime ? 'Scattered clouds' : 'Scattered clouds';
+      
+      case '04': // broken clouds
+        return isDayTime ? 'Overcast' : 'Overcast';
+      
+      case '09': // shower rain
+        return isDayTime ? 'Light rain showers' : 'Light rain showers';
+      
+      case '10': // rain
+        return isDayTime ? 'Rain' : 'Rain';
+      
+      case '11': // thunderstorm
+        return isDayTime ? 'Thunderstorm' : 'Thunderstorm';
+      
+      case '13': // snow
+        return isDayTime ? 'Snow' : 'Snow';
+      
+      case '50': // mist/fog
+        return isDayTime ? 'Mist' : 'Mist';
+      
+      default:
+        return 'Unknown weather';
+    }
+  };
+
+  // Determine weather description for info card based on current hour's forecast
+  const getWeatherDescription = () => {
+    const currentHourData = getCurrentHourForecast();
+    if (!currentHourData) return <Text style={styles.infoText}>Perfect weather for your day!</Text>;
+    
+    const temp = currentHourData.temperature.day;
+    const windSpeed = currentHourData.windSpeed || 0;
+    const description = currentHourData.weather.description || '';
+    const icon = currentHourData.weather.icon || '';
     
     // Simple logic based on weather conditions
     if (temp < 10) return <Text style={styles.infoText}>It's cold today. Bundle up with a warm jacket!</Text>;
@@ -1037,7 +1061,7 @@ const HomeScreen = () => {
             >
               <MaterialCommunityIcons name="map-marker" size={adjust(16)} color="#333" />
               <Text style={styles.headerLocationText}>
-                {currentWeather?.location ? `${currentWeather.location}` : "Loading location..."}
+                {forecast?.location ? `${forecast.location}` : "Loading location..."}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1046,28 +1070,45 @@ const HomeScreen = () => {
           <View style={styles.weatherCard}>
             {/* Weather Icon and Description - Top Right */}
             <View style={styles.weatherIconContainer}>
-              {currentWeather?.icon ? (
-                <MaterialCommunityIcons 
-                  name={getWeatherIconMaterial(currentWeather.icon)} 
-                  size={adjust(55)} 
-                  color={getWeatherIconColor(currentWeather.icon)} 
-                />
-              ) : (
-                <MaterialCommunityIcons 
-                  name="weather-partly-cloudy" 
-                  size={adjust(50)} 
-                  color="#A9A9A9" 
-                />
-              )}
-              <Text style={styles.weatherDescription}>
-                {currentWeather?.description || "Loading..."}
-              </Text>
+              {(() => {
+                const currentHourData = getCurrentHourForecast();
+                if (currentHourData) {
+                  return (
+                    <>
+                      <MaterialCommunityIcons 
+                        name={getWeatherIconMaterial(currentHourData.weather.icon)} 
+                        size={adjust(55)} 
+                        color={getWeatherIconColor(currentHourData.weather.icon)} 
+                      />
+                      <Text style={styles.weatherDescription}>
+                        {getAccurateWeatherDescription(currentHourData.weather.icon)}
+                      </Text>
+                    </>
+                  );
+                } else {
+                  return (
+                    <>
+                      <MaterialCommunityIcons 
+                        name="weather-partly-cloudy" 
+                        size={adjust(50)} 
+                        color="#A9A9A9" 
+                      />
+                      <Text style={styles.weatherDescription}>
+                        Loading...
+                      </Text>
+                    </>
+                  );
+                }
+              })()}
             </View>
 
             {/* Current temperature */}
             <View style={styles.currentTemp}>
               <Text style={styles.tempValue}>
-                {currentWeather?.temperature.toFixed(0) || '--'}°{tempUnit}
+                {(() => {
+                  const currentHourData = getCurrentHourForecast();
+                  return currentHourData ? `${currentHourData.temperature.day.toFixed(0)}°${tempUnit}` : `--°${tempUnit}`;
+                })()}
               </Text>
             </View>
 
@@ -1085,7 +1126,7 @@ const HomeScreen = () => {
             showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.hourlyForecastScroll}
               >
-                {forecast.hourly.map((hour, index) => {
+                {forecast.hourly.slice(0, 24).map((hour, index) => {
                   // Format the timestamp to get the hour
                   const date = new Date(hour.date * 1000);
                   const timeDisplay = index === 0 ? 'Now' : formatHour(hour.date);
@@ -1126,7 +1167,7 @@ const HomeScreen = () => {
               <View style={styles.infoTextContainer}>
                 {getWeatherDescription()}
                 <Text style={styles.commuteText}>
-                  {currentWeather?.location ? `Weather in ${currentWeather.location}, ${currentWeather.country}` : "Loading location data..."}
+                  {forecast?.location ? `Weather in ${forecast.location}, ${forecast.country}` : "Loading location data..."}
                 </Text>
               </View>
             </View>

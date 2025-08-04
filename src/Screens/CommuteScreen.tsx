@@ -66,9 +66,11 @@ const CommuteScreen = () => {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
     const showKeyboard = () => {
+      setIsKeyboardVisible(true);
       scrollToBottom();
       
       // Use correct typing for navigation options
@@ -78,6 +80,7 @@ const CommuteScreen = () => {
     };
     
     const hideKeyboard = () => {
+      setIsKeyboardVisible(false);
       navigation.getParent()?.setOptions({
         tabBarStyle: undefined
       });
@@ -267,7 +270,10 @@ const CommuteScreen = () => {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.questionsOuterContainer}
+            style={[
+              styles.questionsOuterContainer,
+              isKeyboardVisible ? styles.questionsContainerKeyboard : null
+            ]}
             contentContainerStyle={styles.questionsScrollContent}
           >
             {predefinedQuestions.map((question, index) => (
@@ -292,7 +298,10 @@ const CommuteScreen = () => {
             ))}
           </ScrollView>
 
-          <View style={styles.inputContainer}>
+          <View style={[
+            styles.inputContainer,
+            isKeyboardVisible ? styles.inputContainerKeyboard : null
+          ]}>
             <View style={styles.inputWrapper}>
               <TextInput
                 ref={inputRef}
@@ -378,9 +387,10 @@ const styles = StyleSheet.create({
     marginBottom: adjust(90), // Add margin to accommodate questions and input
   },
   chatContent: {
-    padding: adjust(12),
-    paddingBottom: adjust(20), // Reduced since we have marginBottom on container
-    paddingTop: adjust(6),
+    flexGrow: 1,
+    paddingHorizontal: adjust(12),
+    paddingTop: adjust(12),
+    paddingBottom: adjust(80), // Add padding for tab bar
   },
   messageBubble: {
     marginBottom: adjust(12),
@@ -448,17 +458,17 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: adjust(55), // Default position when tab bar is visible
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
     paddingVertical: adjust(6),
     paddingHorizontal: adjust(12),
-    height: adjust(48),
+    height: adjust(40),
     justifyContent: 'center',
-    zIndex: 2, // Ensure input stays above questions
+    zIndex: 2,
+  },
+  inputContainerKeyboard: {
+    bottom: 0, // When keyboard is visible, stick to bottom
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -486,11 +496,14 @@ const styles = StyleSheet.create({
   },
   questionsOuterContainer: {
     position: 'absolute',
-    bottom: adjust(54),
+    bottom: adjust(100), // Default position when tab bar is visible
     left: 0,
     right: 0,
     maxHeight: adjust(44),
-    zIndex: 1, // Keep this to ensure questions stay above chat content
+    zIndex: 1,
+  },
+  questionsContainerKeyboard: {
+    bottom: adjust(45), // When keyboard is visible, position above input
   },
   questionsScrollContent: {
     paddingHorizontal: adjust(12), // Reduced from 14

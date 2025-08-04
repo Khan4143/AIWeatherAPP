@@ -108,22 +108,22 @@ const NotificationScreen = ({ navigation }: { navigation: any }) => {
             </View>
           </View>
 
-          {/* Forecast Button */}
-          <View style={styles.forecastButtonContainer}>
-            <TouchableOpacity 
-              style={styles.forecastButton}
-              activeOpacity={0.9}
-              onPress={handleShowForecast}
-            >
-              <Text style={styles.forecastButtonText}>Show me detailed forecast</Text>
-              <Feather name="arrow-right" size={adjust(18)} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Footer */}
+          {/* Footer Text */}
           <Text style={styles.footerText}>
             You'll receive smart alerts like this to help plan your day
           </Text>
+
+          {/* Bottom Container with Button */}
+          <View style={styles.bottomContainer}>
+            <TouchableOpacity 
+              style={styles.button}
+              activeOpacity={0.9}
+              onPress={handleShowForecast}
+            >
+              <Text style={styles.buttonText}>Show me detailed forecast</Text>
+              <Feather name="arrow-right" size={adjust(18)} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -140,14 +140,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: adjust(30),
+    minHeight: '100%',
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: adjust(5),
     paddingLeft: adjust(5),
-    marginBottom: adjust(15),
+    marginBottom: adjust(10),
   },
   backButton: {
     width: adjust(32),
@@ -156,17 +157,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: adjust(15),
+    marginTop: adjust(10),
     marginLeft: adjust(15),
   },
   notificationBanner: {
-    paddingHorizontal: adjust(20),
-    marginBottom: adjust(25),
+    paddingHorizontal: adjust(15),
+    marginBottom: adjust(20),
   },
   notificationContent: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: adjust(12),
-    padding: adjust(15),
+    padding: adjust(12),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -176,45 +177,45 @@ const styles = StyleSheet.create({
   notificationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: adjust(8),
+    marginBottom: adjust(6),
   },
   appName: {
-    fontSize: adjust(13),
+    fontSize: adjust(11),
     fontWeight: '600',
     color: '#333',
   },
   notificationTime: {
-    fontSize: adjust(12),
+    fontSize: adjust(10),
     color: '#666',
   },
   notificationBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: adjust(10),
+    gap: adjust(8),
   },
   notificationText: {
     flex: 1,
-    fontSize: adjust(13),
+    fontSize: adjust(11),
     color: '#333',
-    lineHeight: adjust(18),
+    lineHeight: adjust(16),
   },
   welcomeHeader: {
     alignItems: 'center',
-    paddingHorizontal: adjust(20),
-    marginBottom: adjust(15),
+    paddingHorizontal: adjust(15),
+    marginBottom: adjust(12),
   },
   welcomeText: {
-    fontSize: adjust(22),
+    fontSize: adjust(16),
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
   },
   weatherCard: {
-    marginHorizontal: adjust(20),
+    marginHorizontal: adjust(15),
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: adjust(15),
-    padding: adjust(20),
-    marginBottom: adjust(20),
+    borderRadius: adjust(12),
+    padding: adjust(15),
+    marginBottom: adjust(15),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -224,65 +225,65 @@ const styles = StyleSheet.create({
   weatherHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: adjust(12),
-    marginBottom: adjust(15),
+    gap: adjust(10),
+    marginBottom: adjust(12),
   },
   weatherMessage: {
     flex: 1,
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
-    lineHeight: adjust(20),
+    lineHeight: adjust(18),
   },
   timeLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: adjust(5),
-    marginBottom: adjust(15),
+    gap: adjust(4),
+    marginBottom: adjust(12),
   },
   timeLabelText: {
-    fontSize: adjust(12),
+    fontSize: adjust(10),
     color: '#666',
   },
   weatherDetails: {
     backgroundColor: 'rgba(67, 97, 238, 0.1)',
-    borderRadius: adjust(12),
-    padding: adjust(15),
-    marginBottom: adjust(20),
+    borderRadius: adjust(10),
+    padding: adjust(12),
+    marginBottom: adjust(15),
   },
   weatherInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: adjust(8),
-    marginBottom: adjust(10),
+    gap: adjust(6),
+    marginBottom: adjust(8),
   },
   weatherType: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
     fontWeight: '500',
   },
   temperature: {
-    fontSize: adjust(14),
+    fontSize: adjust(12),
     color: '#333',
     fontWeight: '500',
     marginLeft: 'auto',
   },
   suggestion: {
-    fontSize: adjust(13),
+    fontSize: adjust(11),
     color: '#333',
-    lineHeight: adjust(18),
+    lineHeight: adjust(16),
   },
   forecastButtonContainer: {
-    paddingHorizontal: adjust(20),
-    marginBottom: adjust(20),
+    paddingHorizontal: adjust(15),
+    marginBottom: adjust(15),
   },
   forecastButton: {
     backgroundColor: '#517FE0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: adjust(25),
-    paddingVertical: adjust(14),
-    gap: adjust(8),
+    borderRadius: adjust(22),
+    paddingVertical: adjust(12),
+    gap: adjust(6),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -291,15 +292,42 @@ const styles = StyleSheet.create({
   },
   forecastButtonText: {
     color: '#fff',
-    fontSize: adjust(14),
+    fontSize: adjust(11),
     fontWeight: '600',
   },
   footerText: {
-    fontSize: adjust(12),
+    fontSize: adjust(10),
     color: '#fff',
     textAlign: 'center',
-    paddingHorizontal: adjust(40),
-    
+    paddingHorizontal: adjust(30),
+    marginBottom: adjust(20),
+  },
+  bottomContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 'auto',
+    paddingHorizontal: adjust(15),
+    marginBottom: adjust(25),
+  },
+  button: {
+    width: '90%',
+    backgroundColor: '#517FE0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: adjust(22),
+    paddingVertical: adjust(12),
+    gap: adjust(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: adjust(11),
+    fontWeight: '600',
   },
 });
 

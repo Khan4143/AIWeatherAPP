@@ -27,6 +27,7 @@ import { generateResponse } from '../services/openaiService';
 import { requestNotificationPermission } from '../Notifications/UseNotification';
 import { scheduleEventNotification, cancelEventNotification, updateEventNotification } from '../Notifications/EventNotifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMaterialWeatherIcon } from '../services/weatherService';
 
 // Planned event type
 interface PlannedEvent {
@@ -122,6 +123,46 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
   
   // Get weather data from context
   const { forecast, currentWeather, isLoading: isLoadingWeather, preferredUnits } = useWeatherContext();
+
+  // Get appropriate icon color based on weather condition (same as ForecastScreen)
+  const getWeatherIconColor = (iconCode: string): string => {
+    if (!iconCode) return '#4361EE'; // Default color
+    
+    // Extract the condition code and day/night indicator
+    const conditionCode = iconCode.substring(0, 2);
+    const isDayTime = iconCode.endsWith('d');
+    
+    // Color mapping based on weather condition and time of day
+    switch(conditionCode) {
+      case '01': // clear sky
+        return isDayTime ? '#FF9500' : '#3A4CA8'; // orange for day, navy for night
+      
+      case '02': // few clouds
+        return isDayTime ? '#4361EE' : '#3A4CA8'; // app blue for day, darker blue for night
+      
+      case '03': // scattered clouds
+      case '04': // broken clouds
+        return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+      
+      case '09': // shower rain
+        return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+      
+      case '10': // rain
+        return isDayTime ? '#5D9CEC' : '#2B3990'; // lighter blue for day, darker blue for night
+      
+      case '11': // thunderstorm
+        return isDayTime ? '#9370DB' : '#6A0DAD'; // medium purple for day, darker purple for night
+      
+      case '13': // snow
+        return isDayTime ? '#5D9CEC' : '#2B3990'; // light blue for day, darker blue for night
+      
+      case '50': // mist/fog
+        return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+    }
+    
+    // Default fallback - use app's primary blue
+    return '#4361EE';
+  };
   
   // Activity options
   const activities = [
@@ -149,20 +190,13 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
 
     const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
 
-    // Convert forecast data to the format we need
-    return forecast.hourly.slice(0, 6).map((hourData, index) => {
+    // Convert forecast data to the format we need - show 24 hourly entries
+    return forecast.hourly.slice(0, 24).map((hourData, index) => {
       const time = format(new Date(hourData.date * 1000), 'h a');
       const temp = Math.round(hourData.temperature.day) + '°' + tempUnit;
       
-      // Map weather conditions to icons
-      let icon = 'sunny-outline';
-      if (hourData.weather.icon.includes('01')) icon = 'sunny-outline';
-      else if (hourData.weather.icon.includes('02')) icon = 'partly-sunny-outline';
-      else if (hourData.weather.icon.includes('03') || hourData.weather.icon.includes('04')) icon = 'cloudy-outline';
-      else if (hourData.weather.icon.includes('09') || hourData.weather.icon.includes('10')) icon = 'rainy-outline';
-      else if (hourData.weather.icon.includes('11')) icon = 'thunderstorm-outline';
-      else if (hourData.weather.icon.includes('13')) icon = 'snow-outline';
-      else if (hourData.weather.icon.includes('50')) icon = 'cloud-outline';
+      // Get weather icon using the same system as ForecastScreen
+      const icon = getMaterialWeatherIcon(hourData.weather.icon);
       
       return {
         id: index.toString(),
@@ -471,6 +505,8 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
       // Get weather data for the selected time
       const weatherData = getWeatherForSelectedTime();
       
+      console.log('Weather data retrieved:', weatherData);
+      
       if (!weatherData) {
         throw new Error('Could not retrieve weather data for the selected time');
       }
@@ -502,15 +538,44 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
         If they should reschedule, suggest ${betterTimes.length > 0 ? 'one of these better times: ' + betterTimes.join(', ') : 'a better time window'}.
         Keep your response conversational, under 4 sentences, and directly focused on whether this plan is a good idea considering the weather.`;
       
-      // Call Gemini API for a recommendation
-      if (currentWeather) {
-        const response = await generateResponse(prompt, currentWeather);
-        setWeatherRecommendation(response.text);
+      // Generate recommendation based on weather conditions
+      let recommendation = '';
+      
+      console.log('Weather data for recommendation:', {
+        temp,
+        weatherDesc,
+        rainChance,
+        wind,
+        activityName,
+        betterTimes
+      });
+      
+      // Check if weather is suitable for the activity
+      const isGoodWeather = rainChance <= 20 && wind <= 15;
+      
+      if (isGoodWeather) {
+        recommendation = `Great news! The weather looks perfect for your ${activityName}. 
+          With ${temp}°${tempUnit}, ${weatherDesc}, and only ${rainChance}% chance of rain, 
+          you should have ideal conditions.`;
       } else {
-        setWeatherRecommendation(`Based on the forecast (${weatherDesc}, ${temp}°${tempUnit}, ${rainChance}% chance of rain), 
-          ${rainChance > 30 ? 'you might want to reschedule your ' + activityName : activityName + ' conditions look good'}. 
-          ${betterTimes.length > 0 ? 'Consider: ' + betterTimes[0] : ''}`);
+        recommendation = `The weather might be challenging for your ${activityName}. 
+          With ${temp}°${tempUnit}, ${weatherDesc}, ${rainChance}% chance of rain, and ${wind} ${preferredUnits === 'imperial' ? 'mph' : 'km/h'} wind, 
+          you might want to consider rescheduling.`;
       }
+      
+      // Add better time suggestions if available
+      if (betterTimes.length > 0) {
+        recommendation += ` Better times to consider: ${betterTimes.slice(0, 2).join(', ')}.`;
+      }
+      
+      console.log('Generated recommendation:', recommendation);
+      
+      // Ensure we always have some text
+      if (!recommendation || recommendation.trim() === '') {
+        recommendation = `Weather analysis for ${activityName}: ${temp}°${tempUnit}, ${weatherDesc}, ${rainChance}% chance of rain.`;
+      }
+      
+      setWeatherRecommendation(recommendation);
       
       // Show the recommendation
       setShowWeatherRecommendation(true);
@@ -718,22 +783,50 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
     const endOfDay = new Date(selectedDateObj);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return forecast.hourly.filter(hour => {
+    // Get all forecasts for the selected date
+    const dayForecasts = forecast.hourly.filter(hour => {
       const hourDate = new Date(hour.date * 1000);
       return hourDate >= startOfDay && hourDate <= endOfDay;
     });
+
+    // For current date, include all remaining hours
+    const isToday = startOfDay.toDateString() === new Date().toDateString();
+    if (isToday) {
+      const currentHour = new Date().getHours();
+      return dayForecasts.filter(hour => {
+        const hourDate = new Date(hour.date * 1000);
+        return hourDate.getHours() >= currentHour;
+      });
+    }
+
+    return dayForecasts;
   };
 
   // Helper function to get weather icon name
   const getWeatherIconName = (iconCode: string): string => {
-    if (iconCode.includes('01')) return 'sunny-outline';
-    if (iconCode.includes('02')) return 'partly-sunny-outline';
-    if (iconCode.includes('03') || iconCode.includes('04')) return 'cloudy-outline';
-    if (iconCode.includes('09') || iconCode.includes('10')) return 'rainy-outline';
-    if (iconCode.includes('11')) return 'thunderstorm-outline';
-    if (iconCode.includes('13')) return 'snow-outline';
-    if (iconCode.includes('50')) return 'cloud-outline';
-    return 'cloudy-outline';
+    // Map OpenWeather icons to Ionicons
+    const iconMap: { [key: string]: string } = {
+      '01d': 'sunny-outline',
+      '01n': 'moon-outline',
+      '02d': 'partly-sunny-outline',
+      '02n': 'cloudy-night-outline',
+      '03d': 'cloudy-outline',
+      '03n': 'cloudy-outline',
+      '04d': 'cloudy-outline',
+      '04n': 'cloudy-outline',
+      '09d': 'rainy-outline',
+      '09n': 'rainy-outline',
+      '10d': 'rainy-outline',
+      '10n': 'rainy-outline',
+      '11d': 'thunderstorm-outline',
+      '11n': 'thunderstorm-outline',
+      '13d': 'snow-outline',
+      '13n': 'snow-outline',
+      '50d': 'cloud-outline',
+      '50n': 'cloud-outline'
+    };
+    
+    return iconMap[iconCode] || 'cloudy-outline';
   };
 
   // Update the forecast data memo to use selected date
@@ -749,7 +842,8 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
         id: hour.date.toString(),
         time: format(hourDate, 'h a'),
         temp: Math.round(hour.temperature.day) + '°',
-        iconName: getWeatherIconName(hour.weather.icon), // Changed to use the iconName property
+        iconName: getMaterialWeatherIcon(hour.weather.icon),
+        iconColor: getWeatherIconColor(hour.weather.icon),
         condition: hour.weather.description,
         pop: hour.pop || 0,
         wind: hour.windSpeed,
@@ -774,7 +868,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <View style={styles.safeArea}>
+    <View style={{ flex: 1, paddingBottom: adjust(30) }}>
       {/* <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" /> */}
       <LinearGradient
         colors={['#b3d4ff', '#5c85e6']}
@@ -928,10 +1022,10 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                   hourlyForecastData.map((item) => (
                     <View key={item.id} style={styles.forecastItem}>
                       <Text style={styles.forecastTime}>{item.time}</Text>
-                      <Ionicons 
+                      <MaterialCommunityIcons 
                         name={item.iconName}
                         size={adjust(18)}
-                        color="#4361EE"
+                        color={item.iconColor}
                       />
                       <Text style={styles.forecastTemp}>{item.temp}</Text>
                       <Text style={styles.forecastCondition} numberOfLines={1}>
@@ -1264,17 +1358,29 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
               </View>
             ) : (
               <View style={styles.weatherRecommendationContent}>
-                <Text style={styles.weatherRecommendationText}>{weatherRecommendation}</Text>
+                <Text style={styles.weatherRecommendationText}>
+                  {weatherRecommendation || 'Weather analysis complete. No specific recommendations at this time.'}
+                </Text>
                 
-                {recommendedTimes.length > 0 && (
-                  <View style={styles.betterTimesContainer}>
-                    <Text style={styles.betterTimesTitle}>Recommended Times:</Text>
-                    {recommendedTimes.map((time, index) => (
-                      <View key={index} style={styles.betterTimeItem}>
-                        <Ionicons name="checkmark-circle" size={adjust(16)} color="#4CAF50" />
-                        <Text style={styles.betterTimeText}>{time}</Text>
-                      </View>
-                    ))}
+                {weatherRecommendation && (
+                  <View style={styles.weatherDetailsContainer}>
+                    <Text style={styles.weatherDetailsTitle}>Weather Details:</Text>
+                    <View style={styles.bulletPoint}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.bulletText}>Temperature: {getWeatherForSelectedTime()?.hourly.temperature.day || 'N/A'}°{preferredUnits === 'imperial' ? 'F' : 'C'}</Text>
+                    </View>
+                    <View style={styles.bulletPoint}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.bulletText}>Condition: {getWeatherForSelectedTime()?.hourly.weather.description || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.bulletPoint}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.bulletText}>Rain Chance: {Math.round((getWeatherForSelectedTime()?.hourly.pop || 0) * 100)}%</Text>
+                    </View>
+                    <View style={styles.bulletPoint}>
+                      <Text style={styles.bullet}>•</Text>
+                      <Text style={styles.bulletText}>Wind Speed: {getWeatherForSelectedTime()?.hourly.windSpeed || 'N/A'} {preferredUnits === 'imperial' ? 'mph' : 'km/h'}</Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -1341,7 +1447,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: adjust(12),
-    paddingBottom: adjust(16),
+    paddingBottom: adjust(25), // Add padding for tab bar
   },
   header: {
     marginTop: adjust(12),
@@ -1815,29 +1921,31 @@ const styles = StyleSheet.create({
   },
   weatherRecommendationModal: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12),
-    padding: adjust(16),
+    borderRadius: adjust(16),
+    padding: adjust(20),
     width: '90%',
-    maxWidth: adjust(320),
+    maxWidth: adjust(340),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   weatherRecommendationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: adjust(12),
-    paddingBottom: adjust(8),
+    marginBottom: adjust(16),
+    paddingBottom: adjust(12),
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#f0f0f0',
   },
   weatherRecommendationTitle: {
-    fontSize: adjust(14),
-    fontWeight: '600',
-    color: '#333',
+    fontSize: adjust(16),
+    fontWeight: '700',
+    color: '#1a1a1a',
+    flex: 1,
+    marginLeft: adjust(8),
   },
   loadingContainer: {
     flex: 1,
@@ -1851,12 +1959,41 @@ const styles = StyleSheet.create({
     marginTop: adjust(8),
   },
   weatherRecommendationContent: {
-    flex: 1,
+    paddingVertical: adjust(16),
+    minHeight: adjust(80),
   },
   weatherRecommendationText: {
-    color: '#333',
-    fontSize: adjust(12),
+    color: '#2c2c2c',
+    fontSize: adjust(13),
     marginBottom: adjust(8),
+    lineHeight: adjust(22),
+    textAlign: 'left',
+    fontWeight: '400',
+  },
+  weatherDetailsContainer: {
+    marginTop: adjust(12),
+  },
+  weatherDetailsTitle: {
+    fontSize: adjust(13),
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: adjust(8),
+  },
+  bulletPoint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: adjust(4),
+  },
+  bullet: {
+    fontSize: adjust(12),
+    color: '#4361EE',
+    marginRight: adjust(8),
+    marginTop: adjust(1),
+  },
+  bulletText: {
+    fontSize: adjust(12),
+    color: '#2c2c2c',
+    flex: 1,
     lineHeight: adjust(16),
   },
   betterTimesContainer: {
@@ -1880,14 +2017,19 @@ const styles = StyleSheet.create({
   },
   closeRecommendationButton: {
     backgroundColor: '#4361EE',
-    borderRadius: adjust(8),
-    paddingVertical: adjust(8),
+    borderRadius: adjust(12),
+    paddingVertical: adjust(12),
     alignItems: 'center',
-    marginTop: adjust(12),
+    marginTop: adjust(16),
+    shadowColor: '#4361EE',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   closeRecommendationButtonText: {
     color: '#fff',
-    fontSize: adjust(11),
+    fontSize: adjust(14),
     fontWeight: '600',
   },
   assistantCard: {
@@ -1944,6 +2086,54 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: adjust(11),
     fontWeight: '600',
+  },
+  weatherSection: {
+    marginTop: adjust(15),
+    paddingHorizontal: adjust(15),
+  },
+  weatherScrollContent: {
+    paddingVertical: adjust(10),
+  },
+  weatherCard: {
+    backgroundColor: '#fff',
+    borderRadius: adjust(12),
+    padding: adjust(10),
+    marginRight: adjust(10),
+    width: adjust(80),
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timeText: {
+    fontSize: adjust(12),
+    color: '#333',
+    marginBottom: adjust(5),
+  },
+  weatherIcon: {
+    marginVertical: adjust(5),
+  },
+  tempText: {
+    fontSize: adjust(14),
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: adjust(5),
+  },
+  weatherDetails: {
+    width: '100%',
+  },
+  weatherDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: adjust(3),
+  },
+  detailText: {
+    fontSize: adjust(10),
+    color: '#666',
+    marginLeft: adjust(3),
   },
 });
 

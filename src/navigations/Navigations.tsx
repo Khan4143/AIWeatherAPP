@@ -5,7 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Linking } from 'react-native';
 
 import WelcomeScreen from '../Screens/WelcomeScreen';
-import IntroScreen from '../Screens/IntroScreen';
+
 import UserInfo from '../Screens/UserInfo';
 import DailyRoutine from '../Screens/DailyRoutine';
 import PreferenceScreen from '../Screens/PreferenceScreen';
@@ -20,7 +20,6 @@ import { navigationRef } from './navigationRef';
 // Update RootStackParamList to include bypassOnboardingCheck parameter
 export type RootStackParamList = {
   Welcome: { bypassOnboardingCheck?: boolean } | undefined;
-  Intro: undefined;
   UserInfo: undefined;
   DailyRoutine: undefined;
   PreferenceScreen: undefined;
@@ -55,7 +54,6 @@ const linking = {
   config: {
     screens: {
       Welcome: 'welcome',
-      Intro: 'intro',
       UserInfo: 'user-info',
       DailyRoutine: 'daily-routine',
       PreferenceScreen: 'preferences',
@@ -104,7 +102,6 @@ const Navigations = () => {
         }}>
         {/* Onboarding Screens */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="Intro" component={IntroScreen} />
         <Stack.Screen name="UserInfo" component={UserInfo} />
         <Stack.Screen name="DailyRoutine" component={DailyRoutine} />
         <Stack.Screen name="PreferenceScreen" component={PreferenceScreen} />

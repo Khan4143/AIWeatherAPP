@@ -372,7 +372,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         start={{x: 0, y: 0}}
         end={{x: 0, y: 1}}
       >
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={{ flex: 1, paddingBottom: adjust(30) }}>
           <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             {/* Header with settings */}
             <View style={styles.headerRow}>
@@ -504,82 +504,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
               </View>
             </View>
 
-            {/* Notification Box */}
-            <View style={styles.notificationBox}>
-              <Text style={styles.notificationText}>
-                I'll adjust your notifications and outfit tips accordingly 👍
-              </Text>
-            </View>
 
-            {/* Smart Notifications */}
-            <Text style={styles.sectionTitle}>Smart Notifications</Text>
-            
-            {/* Notification Options */}
-            <View style={styles.notificationOptions}>
-              {/* Commute alerts */}
-              <View style={styles.notificationRow}>
-                <View style={styles.notificationLabel}>
-                  <MaterialIcons name="commute" size={adjust(18)} color="#333" />
-                  <Text style={styles.notificationText}>Commute alerts</Text>
-                </View>
-                <Switch
-                  value={commuteAlerts}
-                  onValueChange={setCommuteAlerts}
-                  trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
-                  thumbColor={commuteAlerts ? '#4361EE' : '#f4f3f4'}
-                  ios_backgroundColor="#e0e0e0"
-                />
-              </View>
-
-              {/* Clothing suggestions */}
-              <View style={styles.notificationRow}>
-                <View style={styles.notificationLabel}>
-                  <MaterialIcons name="checkroom" size={adjust(18)} color="#333" />
-                  <Text style={styles.notificationText}>Clothing suggestions</Text>
-                </View>
-                <Switch
-                  value={clothingSuggestions}
-                  onValueChange={setClothingSuggestions}
-                  trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
-                  thumbColor={clothingSuggestions ? '#4361EE' : '#f4f3f4'}
-                  ios_backgroundColor="#e0e0e0"
-                />
-              </View>
-
-              {/* Health tips */}
-              <View style={styles.notificationRow}>
-                <View style={styles.notificationLabel}>
-                  <MaterialIcons name="favorite-border" size={adjust(18)} color="#333" />
-                  <Text style={styles.notificationText}>Health tips</Text>
-                </View>
-                <Switch
-                  value={healthTips}
-                  onValueChange={setHealthTips}
-                  trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
-                  thumbColor={healthTips ? '#4361EE' : '#f4f3f4'}
-                  ios_backgroundColor="#e0e0e0"
-                />
-              </View>
-
-              {/* Event reminders */}
-              <View style={styles.notificationRow}>
-                <View style={styles.notificationLabel}>
-                  <Ionicons name="time-outline" size={adjust(18)} color="#333" />
-                  <Text style={styles.notificationText}>Event reminders</Text>
-                </View>
-                <Switch
-                  value={eventReminders}
-                  onValueChange={setEventReminders}
-                  trackColor={{ false: '#e0e0e0', true: '#b3c7ff' }}
-                  thumbColor={eventReminders ? '#4361EE' : '#f4f3f4'}
-                  ios_backgroundColor="#e0e0e0"
-                />
-              </View>
-            </View>
-
-            <Text style={styles.notificationCaption}>
-              Skylar only alerts you when it matters — not too often
-            </Text>
 
             {/* Other Preferences */}
             <Text style={styles.sectionTitle}>Other Preferences</Text>
@@ -770,12 +695,12 @@ const styles = StyleSheet.create({
     paddingLeft: adjust(5),
   },
   greeting: {
-    fontSize: adjust(20),
+    fontSize: adjust(16),
     fontWeight: '600',
     color: '#333',
   },
   subtitle: {
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     color: '#666',
   },
   editButton: {
@@ -787,7 +712,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: adjust(15),
+    fontSize: adjust(14),
     fontWeight: '600',
     color: '#333',
     marginTop: adjust(14),
@@ -831,7 +756,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: '#ffffff',
     borderRadius: adjust(10),
-    padding: adjust(7),
+    padding: adjust(6),
     marginBottom: adjust(12),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -858,7 +783,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.05)',
   },
   commuteSection: {
-    marginBottom: adjust(0),
   },
   commuteHeader: {
     flexDirection: 'row',
@@ -880,7 +804,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   preferenceLabel: {
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     color: '#333',
   },
   preferenceValue: {
@@ -888,54 +812,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   preferenceValueText: {
-    fontSize: adjust(13),
+    fontSize: adjust(12),
     color: '#808080',
     marginRight: adjust(4),
   },
-  notificationBox: {
-    backgroundColor: 'rgba(67, 97, 238, 0.08)',
-    borderRadius: adjust(10),
-    padding: adjust(12),
-    marginBottom: adjust(12),
-  },
-  notificationOptions: {
-    marginVertical: adjust(6),
-  },
-  notificationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: adjust(8),
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  notificationLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  notificationText: {
-    fontSize: adjust(13),
-    color: '#333',
-    marginLeft: adjust(6),
-  },
-  notificationCaption: {
-    fontSize: adjust(12),
-    color: '#666',
-    marginTop: adjust(6),
-    marginBottom: adjust(12),
-  },
-  customizeButton: {
-    backgroundColor: '#4361EE',
-    borderRadius: adjust(10),
-    paddingVertical: adjust(12),
-    alignItems: 'center',
-    marginBottom: adjust(16),
-  },
-  customizeButtonText: {
-    color: '#fff',
-    fontSize: adjust(13),
-    fontWeight: '600',
-  },
+  // notificationBox: {
+  //   backgroundColor: 'rgba(67, 97, 238, 0.08)',
+  //   borderRadius: adjust(10),
+  //   padding: adjust(12),
+  //   marginBottom: adjust(12),
+  // },
+  // notificationOptions: {
+  //   marginVertical: adjust(6),
+  // },
+  // notificationRow: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  //   alignItems: 'center',
+  //   paddingVertical: adjust(8),
+  //   borderBottomWidth: 1,
+  //   borderBottomColor: '#f0f0f0',
+  // },
+  // notificationLabel: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  // },
+  // notificationText: {
+  //   fontSize: adjust(13),
+  //   color: '#333',
+  //   marginLeft: adjust(6),
+  // },
+  // notificationCaption: {
+  //   fontSize: adjust(12),
+  //   color: '#666',
+  //   marginTop: adjust(6),
+  //   marginBottom: adjust(12),
+  // },
+  // customizeButton: {
+  //   backgroundColor: '#4361EE',
+  //   borderRadius: adjust(10),
+  //   paddingVertical: adjust(12),
+  //   alignItems: 'center',
+  //   marginBottom: adjust(16),
+  // },
+  // customizeButtonText: {
+  //   color: '#fff',
+  //   fontSize: adjust(13),
+  //   fontWeight: '600',
+  // },
   resetContainer: {
     alignItems: 'center',
     marginBottom: adjust(24),

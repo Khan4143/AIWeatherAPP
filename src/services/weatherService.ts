@@ -1,10 +1,10 @@
 // OpenWeather API Service
 // This file contains functions for fetching weather data from the OpenWeather API
 
-const API_KEY = '87b449b894656bb5d85c61981ace7d25';
+const API_KEY = '027ed4b6eb25a572ae0e91302e6d93a2';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
-// Weather data interface
+// Update WeatherData interface to include UV index and rain probability
 export interface WeatherData {
   location: string;
   country: string;
@@ -26,6 +26,10 @@ export interface WeatherData {
     lat: number;
     lon: number;
   };
+  uvi: number;
+  rainProbability: number;
+  clouds: number;
+  rain1h?: number;
 }
 
 export interface ForecastDay {
@@ -89,6 +93,7 @@ interface HourlyForecastData {
   rain?: {
     '3h': number;
   };
+  visibility: number;
 }
 
 export interface ForecastData {
@@ -128,15 +133,169 @@ export const validateCity = async (city: string): Promise<boolean> => {
   }
 };
 
-// Helper function to convert temperature from Kelvin to Celsius
-const kelvinToCelsius = (kelvin: number): number => {
-  return Math.round((kelvin - 273.15) * 10) / 10;
+// Add new interface for weather icon mapping
+interface WeatherIconMapping {
+  materialIcon: string;  // MaterialCommunityIcons name
+  featherIcon: string;  // Feather icons name
+  description: string;  // Human readable description
+}
+
+// Centralized weather icon mapping
+const WEATHER_ICONS: { [key: string]: WeatherIconMapping } = {
+  '01d': { materialIcon: 'weather-sunny', featherIcon: 'sun', description: 'Clear sky (day)' },
+  '01n': { materialIcon: 'weather-night', featherIcon: 'moon', description: 'Clear sky (night)' },
+  '02d': { materialIcon: 'weather-partly-cloudy', featherIcon: 'cloud-sun', description: 'Few clouds (day)' },
+  '02n': { materialIcon: 'weather-night-partly-cloudy', featherIcon: 'cloud-moon', description: 'Few clouds (night)' },
+  '03d': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Scattered clouds (day)' },
+  '03n': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Scattered clouds (night)' },
+  '04d': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Broken clouds (day)' },
+  '04n': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Broken clouds (night)' },
+  '09d': { materialIcon: 'weather-pouring', featherIcon: 'cloud-rain', description: 'Shower rain (day)' },
+  '09n': { materialIcon: 'weather-pouring', featherIcon: 'cloud-rain', description: 'Shower rain (night)' },
+  '10d': { materialIcon: 'weather-rainy', featherIcon: 'cloud-drizzle', description: 'Rain (day)' },
+  '10n': { materialIcon: 'weather-rainy', featherIcon: 'cloud-drizzle', description: 'Rain (night)' },
+  '11d': { materialIcon: 'weather-lightning', featherIcon: 'cloud-lightning', description: 'Thunderstorm (day)' },
+  '11n': { materialIcon: 'weather-lightning', featherIcon: 'cloud-lightning', description: 'Thunderstorm (night)' },
+  '13d': { materialIcon: 'weather-snowy', featherIcon: 'cloud-snow', description: 'Snow (day)' },
+  '13n': { materialIcon: 'weather-snowy', featherIcon: 'cloud-snow', description: 'Snow (night)' },
+  '50d': { materialIcon: 'weather-fog', featherIcon: 'wind', description: 'Mist (day)' },
+  '50n': { materialIcon: 'weather-fog', featherIcon: 'wind', description: 'Mist (night)' }
 };
 
-// Helper function to convert temperature from Kelvin to Fahrenheit
-const kelvinToFahrenheit = (kelvin: number): number => {
-  return Math.round(((kelvin - 273.15) * 9/5 + 32) * 10) / 10;
-};
+// Helper function to determine weather icon based on conditions
+function determineWeatherIcon(
+  weatherMain: string,
+  clouds: number,
+  rain1h?: number,
+  visibility?: number,
+  isNight: boolean = false
+): string {
+  // Log incoming data
+  console.log('Determining weather icon for:', {
+    weatherMain,
+    clouds,
+    rain1h,
+    visibility,
+    isNight
+  });
+
+  // Define thresholds
+  const SIGNIFICANT_RAIN = 0.5; // mm/h - only consider it "rain" if more than this
+  const CLEAR_CLOUD_THRESHOLD = 20;
+  const FEW_CLOUDS_THRESHOLD = 35;
+  const SCATTERED_CLOUDS_THRESHOLD = 65;
+  const GOOD_VISIBILITY = 8000;
+
+  // Determine base condition
+  let iconCode: string;
+
+  // First, check if there's significant rain
+  if (rain1h !== undefined && rain1h >= SIGNIFICANT_RAIN) {
+    iconCode = rain1h > 2.5 ? '09' : '10'; // Heavy vs light rain
+  }
+  // If there's no significant rain, use cloud coverage regardless of what the API says is "main"
+  else {
+    if (clouds <= CLEAR_CLOUD_THRESHOLD && visibility && visibility >= GOOD_VISIBILITY) {
+      iconCode = '01'; // Clear sky
+    }
+    else if (clouds <= FEW_CLOUDS_THRESHOLD) {
+      iconCode = '02'; // Few clouds
+    }
+    else if (clouds <= SCATTERED_CLOUDS_THRESHOLD) {
+      iconCode = '03'; // Scattered clouds
+    }
+    else {
+      iconCode = '04'; // Broken clouds
+    }
+  }
+
+  // Add day/night suffix
+  iconCode += isNight ? 'n' : 'd';
+
+  // Log the determined icon code
+  console.log('Determined icon code:', iconCode);
+
+  return iconCode;
+}
+
+// Helper function to verify weather condition matches the description and icon
+function verifyWeatherCondition(
+  weatherData: { main: string; description: string; icon: string },
+  clouds: number,
+  rain1h?: number,
+  visibility?: number
+): { main: string; description: string; icon: string } {
+  // Log raw weather data for debugging
+  console.log('Raw weather data:', {
+    weatherData,
+    clouds,
+    rain1h,
+    visibility
+  });
+
+  // Determine if it's night based on original icon
+  const isNight = weatherData.icon.endsWith('n');
+
+  // Get the correct icon based on actual conditions
+  const correctIconCode = determineWeatherIcon(
+    weatherData.main,
+    clouds,
+    rain1h,
+    visibility,
+    isNight
+  );
+
+  // Get the mapping for the correct icon
+  const iconMapping = WEATHER_ICONS[correctIconCode];
+
+  // Determine the main condition based on actual measurements
+  let mainCondition = weatherData.main;
+  let description = weatherData.description;
+
+  // If API says it's raining but there's no significant rain, correct it
+  if (weatherData.main === 'Rain' && (!rain1h || rain1h < 0.5)) {
+    if (clouds <= 20) {
+      mainCondition = 'Clear';
+      description = 'clear sky';
+    } else if (clouds <= 35) {
+      mainCondition = 'Clouds';
+      description = 'few clouds';
+    } else if (clouds <= 65) {
+      mainCondition = 'Clouds';
+      description = 'scattered clouds';
+    } else {
+      mainCondition = 'Clouds';
+      description = 'broken clouds';
+    }
+  }
+
+  // Create verified weather data
+  const verifiedData = {
+    main: mainCondition,
+    description: description,
+    icon: correctIconCode
+  };
+
+  // Log if we made any corrections
+  if (verifiedData.icon !== weatherData.icon) {
+    console.log('Weather condition corrected:', {
+      original: weatherData,
+      corrected: verifiedData
+    });
+  }
+
+  return verifiedData;
+}
+
+// Export helper function to get Material icon name
+export function getMaterialWeatherIcon(iconCode: string): string {
+  return WEATHER_ICONS[iconCode]?.materialIcon || 'weather-cloudy';
+}
+
+// Export helper function to get Feather icon name
+export function getFeatherWeatherIcon(iconCode: string): string {
+  return WEATHER_ICONS[iconCode]?.featherIcon || 'cloud';
+}
 
 /**
  * Fetch current weather data for a specific city
@@ -145,7 +304,7 @@ const kelvinToFahrenheit = (kelvin: number): number => {
  * @returns Promise with weather data
  */
 export const fetchCurrentWeather = async (
-  city: string, 
+  city: string,
   units: 'metric' | 'imperial' | 'standard' = 'metric'
 ): Promise<WeatherData> => {
   try {
@@ -168,9 +327,18 @@ export const fetchCurrentWeather = async (
     }
 
     const data = await response.json();
+    console.log('Raw API response:', data);
+
+    // Fetch detailed weather data including UV index
+    const detailedData = await fetchDetailedWeather(data.coord.lat, data.coord.lon);
     
-    // Verify weather condition matches the description and icon
-    verifyWeatherCondition(data.weather[0]);
+    // Verify weather condition with all available data
+    const verifiedWeather = verifyWeatherCondition(
+      data.weather[0],
+      data.clouds?.all || 0,
+      data.rain?.['1h'],
+      data.visibility
+    );
     
     // Map the API response to our WeatherData interface
     const weatherData: WeatherData = {
@@ -181,8 +349,8 @@ export const fetchCurrentWeather = async (
       tempMax: data.main.temp_max,
       feelsLike: data.main.feels_like,
       humidity: data.main.humidity,
-      description: data.weather[0].description,
-      icon: data.weather[0].icon,
+      description: verifiedWeather.description,
+      icon: verifiedWeather.icon,
       windSpeed: data.wind.speed,
       windDirection: data.wind.deg,
       sunrise: data.sys.sunrise,
@@ -194,6 +362,10 @@ export const fetchCurrentWeather = async (
         lat: data.coord.lat,
         lon: data.coord.lon,
       },
+      uvi: detailedData?.current?.uvi || 0,
+      rainProbability: detailedData?.hourly?.[0]?.pop || 0,
+      clouds: data.clouds?.all || 0,
+      rain1h: data.rain?.['1h'],
     };
 
     return weatherData;
@@ -201,38 +373,6 @@ export const fetchCurrentWeather = async (
     throw new Error(`Failed to fetch weather: ${error.message}`);
   }
 };
-
-// Helper function to verify weather condition matches the description and icon
-function verifyWeatherCondition(weatherData: { main: string, description: string, icon: string }) {
-  // Mappings based on OpenWeather API documentation
-  // https://openweathermap.org/weather-conditions
-  const conditionIconMap: { [key: string]: string[] } = {
-    'Clear': ['01d', '01n'],
-    'Clouds': ['02d', '02n', '03d', '03n', '04d', '04n'],
-    'Rain': ['09d', '09n', '10d', '10n'],
-    'Drizzle': ['09d', '09n'],
-    'Thunderstorm': ['11d', '11n'],
-    'Snow': ['13d', '13n'],
-    'Mist': ['50d', '50n'],
-    'Smoke': ['50d', '50n'],
-    'Haze': ['50d', '50n'],
-    'Dust': ['50d', '50n'],
-    'Fog': ['50d', '50n'],
-    'Sand': ['50d', '50n'],
-    'Ash': ['50d', '50n'],
-    'Squall': ['50d', '50n'],
-    'Tornado': ['50d', '50n'],
-  };
-
-  // Check if icon is valid for the main condition
-  const validIcons = conditionIconMap[weatherData.main] || [];
-  const isIconValid = validIcons.includes(weatherData.icon);
-  
-  // If not valid, still use what we received but log the warning
-  if (!isIconValid) {
-    console.warn(`Warning: Icon code ${weatherData.icon} might not be appropriate for ${weatherData.main} condition`);
-  }
-}
 
 /**
  * Fetch weather forecast for a specific city
@@ -257,9 +397,22 @@ export const fetchWeatherForecast = async (
       query = `${cityName},${countryCode}`;
     }
 
-    // Get the 5 day / 3 hour forecast
+    // First get coordinates for the city
+    const geoResponse = await fetch(
+      `${BASE_URL}/weather?q=${query}&appid=${API_KEY}&units=${units}`
+    );
+
+    if (!geoResponse.ok) {
+      const errorData = await geoResponse.json();
+      throw new Error(errorData.message || 'Failed to fetch city coordinates');
+    }
+
+    const geoData = await geoResponse.json();
+    const { lat, lon } = geoData.coord;
+
+    // Get hourly forecast using One Call API (provides true hourly data)
     const response = await fetch(
-      `${BASE_URL}/forecast?q=${query}&appid=${API_KEY}&units=${units}`
+      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&appid=${API_KEY}&units=${units}`
     );
 
     if (!response.ok) {
@@ -269,84 +422,94 @@ export const fetchWeatherForecast = async (
 
     const data = await response.json();
 
-    // Process daily forecasts - improved method to avoid icon discrepancies
-    const processedDailyForecasts = processForecastData(data.list);
+    // Process daily forecasts from One Call API
+    const dailyForecasts = data.daily || [];
     
-    // Extract hourly forecasts for the next 24 hours
-    const hourlyForecasts = data.list.slice(0, 8); // Next 24 hours (3-hour intervals)
+    // Get hourly forecasts from One Call API (provides true hourly data for 48 hours)
+    const hourlyForecasts = data.hourly || [];
     
     // Map the API response to our ForecastData interface
     const forecastData: ForecastData = {
       location: currentWeather.location,
       country: currentWeather.country,
-      timezone: data.city.timezone || 0,
+      timezone: data.timezone_offset || 0,
       current: currentWeather,
-      daily: processedDailyForecasts.map(dayData => ({
+      daily: dailyForecasts.map((dayData: any) => ({
         date: dayData.dt,
-        sunrise: currentWeather.sunrise,  // Use current day as placeholder
-        sunset: currentWeather.sunset,    // Use current day as placeholder
+        sunrise: dayData.sunrise,
+        sunset: dayData.sunset,
         temperature: {
-          day: dayData.main.temp,
-          min: dayData.main.temp_min,
-          max: dayData.main.temp_max,
-          night: dayData.main.temp,
-          eve: dayData.main.temp,
-          morn: dayData.main.temp,
+          day: dayData.temp.day,
+          min: dayData.temp.min,
+          max: dayData.temp.max,
+          night: dayData.temp.night,
+          eve: dayData.temp.eve,
+          morn: dayData.temp.morn,
         },
         feelsLike: {
-          day: dayData.main.feels_like,
-          night: dayData.main.feels_like,
-          eve: dayData.main.feels_like,
-          morn: dayData.main.feels_like,
+          day: dayData.feels_like.day,
+          night: dayData.feels_like.night,
+          eve: dayData.feels_like.eve,
+          morn: dayData.feels_like.morn,
         },
-        pressure: dayData.main.pressure,
-        humidity: dayData.main.humidity,
+        pressure: dayData.pressure,
+        humidity: dayData.humidity,
         weather: {
           id: dayData.weather[0].id,
           main: dayData.weather[0].main,
           description: dayData.weather[0].description,
           icon: dayData.weather[0].icon,
         },
-        windSpeed: dayData.wind.speed,
-        windDirection: dayData.wind.deg,
-        clouds: dayData.clouds.all,
+        windSpeed: dayData.wind_speed,
+        windDirection: dayData.wind_deg,
+        clouds: dayData.clouds,
         pop: dayData.pop || 0,
-        rain: dayData.rain ? dayData.rain['3h'] : undefined,
-        uvi: 0, // UV index not available in free tier
+        rain: dayData.rain,
+        uvi: dayData.uvi,
       })),
-      hourly: hourlyForecasts.map((hourData: HourlyForecastData) => ({
-        date: hourData.dt,
-        sunrise: currentWeather.sunrise,
-        sunset: currentWeather.sunset,
-        temperature: {
-          day: hourData.main.temp,
-          min: hourData.main.temp_min,
-          max: hourData.main.temp_max,
-          night: hourData.main.temp,
-          eve: hourData.main.temp,
-          morn: hourData.main.temp,
-        },
-        feelsLike: {
-          day: hourData.main.feels_like,
-          night: hourData.main.feels_like,
-          eve: hourData.main.feels_like,
-          morn: hourData.main.feels_like,
-        },
-        pressure: hourData.main.pressure,
-        humidity: hourData.main.humidity,
-        weather: {
-          id: hourData.weather[0].id,
-          main: hourData.weather[0].main,
-          description: hourData.weather[0].description,
-          icon: hourData.weather[0].icon,
-        },
-        windSpeed: hourData.wind.speed,
-        windDirection: hourData.wind.deg,
-        clouds: hourData.clouds.all,
-        pop: hourData.pop || 0,
-        rain: hourData.rain ? hourData.rain['3h'] : undefined,
-        uvi: 0, // UV index not available in free tier
-      }))
+      hourly: hourlyForecasts.map((hourData: any) => {
+        // Verify weather condition for each hour
+        const verifiedWeather = verifyWeatherCondition(
+          hourData.weather[0],
+          hourData.clouds,
+          hourData.rain,
+          hourData.visibility
+        );
+
+        return {
+          date: hourData.dt,
+          sunrise: currentWeather.sunrise,
+          sunset: currentWeather.sunset,
+          temperature: {
+            day: hourData.temp,
+            min: hourData.temp,
+            max: hourData.temp,
+            night: hourData.temp,
+            eve: hourData.temp,
+            morn: hourData.temp,
+          },
+          feelsLike: {
+            day: hourData.feels_like,
+            night: hourData.feels_like,
+            eve: hourData.feels_like,
+            morn: hourData.feels_like,
+          },
+          pressure: hourData.pressure,
+          humidity: hourData.humidity,
+          weather: {
+            id: hourData.weather[0].id,
+            main: verifiedWeather.main,
+            description: verifiedWeather.description,
+            icon: verifiedWeather.icon,
+          },
+          windSpeed: hourData.wind_speed,
+          windDirection: hourData.wind_deg,
+          clouds: hourData.clouds,
+          pop: hourData.pop || 0,
+          rain: hourData.rain,
+          uvi: hourData.uvi,
+        };
+      })
     };
 
     return forecastData;
@@ -373,16 +536,26 @@ function processForecastData(forecastList: any[]): any[] {
       dayMap.set(dayKey, []);
     }
     
+    // Verify weather condition before adding to the day's data
+    const verifiedWeather = verifyWeatherCondition(
+      item.weather[0],
+      item.clouds?.all || 0,
+      item.rain?.['3h'] ? item.rain['3h'] / 3 : undefined, // Convert 3h rain to 1h
+      item.visibility
+    );
+    
+    // Update the item with verified weather data
+    item.weather[0] = verifiedWeather;
+    
     dayMap.get(dayKey)?.push(item);
   });
   
-  // For each day, compute true min/max from all 3-hourly entries
+  // Process each day's data
   dayMap.forEach((items, day) => {
     // Sort by timestamp
     items.sort((a, b) => a.dt - b.dt);
     
     // Find forecast closest to noon for representative 'day' temp
-    // This fixes the issue with potentially wrong icons
     let closestToNoon = items[0];
     let minDiff = Number.MAX_SAFE_INTEGER;
     
@@ -396,29 +569,6 @@ function processForecastData(forecastList: any[]): any[] {
         closestToNoon = item;
       }
     });
-    
-    // Check if current day forecast is for clear or cloudy conditions
-    // If we detect a condition mismatch (rainy icon for a clear day), try to find a better match
-    const mainCondition = closestToNoon.weather[0].main;
-    const iconCode = closestToNoon.weather[0].icon;
-    
-    // Detect if we have a rain icon (10d, 09d, etc.) for a clear or cloudy day
-    if ((mainCondition === 'Clear' || mainCondition === 'Clouds') && 
-        (iconCode.startsWith('09') || iconCode.startsWith('10') || iconCode.startsWith('11'))) {
-      
-      // Try to find a more appropriate forecast for this day
-      for (const item of items) {
-        const itemCondition = item.weather[0].main;
-        const itemIcon = item.weather[0].icon;
-        
-        if ((itemCondition === 'Clear' && itemIcon.startsWith('01')) || 
-            (itemCondition === 'Clouds' && (itemIcon.startsWith('02') || itemIcon.startsWith('03') || itemIcon.startsWith('04')))) {
-          // Found a more appropriate forecast
-          closestToNoon = item;
-          break;
-        }
-      }
-    }
     
     // Compute true min/max for the day
     let minTemp = items[0].main.temp_min;
@@ -463,6 +613,18 @@ export const fetchWeatherByCoordinates = async (
     }
 
     const data = await response.json();
+    console.log('Raw API response:', data);
+
+    // Fetch detailed weather data including UV index
+    const detailedData = await fetchDetailedWeather(data.coord.lat, data.coord.lon);
+    
+    // Verify weather condition with all available data
+    const verifiedWeather = verifyWeatherCondition(
+      data.weather[0],
+      data.clouds?.all || 0,
+      data.rain?.['1h'],
+      data.visibility
+    );
     
     // Map the API response to our WeatherData interface
     const weatherData: WeatherData = {
@@ -473,8 +635,8 @@ export const fetchWeatherByCoordinates = async (
       tempMax: data.main.temp_max,
       feelsLike: data.main.feels_like,
       humidity: data.main.humidity,
-      description: data.weather[0].description,
-      icon: data.weather[0].icon,
+      description: verifiedWeather.description,
+      icon: verifiedWeather.icon,
       windSpeed: data.wind.speed,
       windDirection: data.wind.deg,
       sunrise: data.sys.sunrise,
@@ -486,6 +648,10 @@ export const fetchWeatherByCoordinates = async (
         lat: data.coord.lat,
         lon: data.coord.lon,
       },
+      uvi: detailedData?.current?.uvi || 0,
+      rainProbability: detailedData?.hourly?.[0]?.pop || 0,
+      clouds: data.clouds?.all || 0,
+      rain1h: data.rain?.['1h'],
     };
 
     return weatherData;
@@ -493,6 +659,24 @@ export const fetchWeatherByCoordinates = async (
     throw new Error(`Failed to fetch weather: ${error.message}`);
   }
 };
+
+// Add new function to fetch detailed weather data including UV index
+async function fetchDetailedWeather(lat: number, lon: number): Promise<any> {
+  try {
+    const response = await fetch(
+      `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&appid=${API_KEY}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch detailed weather data');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching detailed weather:', error);
+    return null;
+  }
+}
 
 // Export weather icon URL helper
 export const getWeatherIconUrl = (iconCode: string): string => {
