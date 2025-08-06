@@ -10,7 +10,7 @@ const OPENAI_API_ENDPOINT = 'https://us-central1-ai-weather-app-f69fc.cloudfunct
 // 🔧 Add better logging when real API is hit to track unexpected usage.
 // 🔧 Temporarily disable retries to avoid overloading OpenAI.
 
-const IS_DEVELOPMENT = false; // ✅ Force mock mode for now - Change to false to enable real API
+const IS_DEVELOPMENT = true; // ✅ Force mock mode for now - Change to false to enable real API
 const MAX_RETRIES = 0; // 🚫 Disable retries to prevent API flooding
 const RATE_LIMIT_DELAY = 15000; // ⏳ Increase delay between requests
 const BASE_RETRY_DELAY = 5000; // 5 seconds base delay

@@ -170,15 +170,6 @@ function determineWeatherIcon(
   visibility?: number,
   isNight: boolean = false
 ): string {
-  // Log incoming data
-  console.log('Determining weather icon for:', {
-    weatherMain,
-    clouds,
-    rain1h,
-    visibility,
-    isNight
-  });
-
   // Define thresholds
   const SIGNIFICANT_RAIN = 0.5; // mm/h - only consider it "rain" if more than this
   const CLEAR_CLOUD_THRESHOLD = 20;
@@ -212,9 +203,6 @@ function determineWeatherIcon(
   // Add day/night suffix
   iconCode += isNight ? 'n' : 'd';
 
-  // Log the determined icon code
-  console.log('Determined icon code:', iconCode);
-
   return iconCode;
 }
 
@@ -225,14 +213,6 @@ function verifyWeatherCondition(
   rain1h?: number,
   visibility?: number
 ): { main: string; description: string; icon: string } {
-  // Log raw weather data for debugging
-  console.log('Raw weather data:', {
-    weatherData,
-    clouds,
-    rain1h,
-    visibility
-  });
-
   // Determine if it's night based on original icon
   const isNight = weatherData.icon.endsWith('n');
 
@@ -275,14 +255,6 @@ function verifyWeatherCondition(
     description: description,
     icon: correctIconCode
   };
-
-  // Log if we made any corrections
-  if (verifiedData.icon !== weatherData.icon) {
-    console.log('Weather condition corrected:', {
-      original: weatherData,
-      corrected: verifiedData
-    });
-  }
 
   return verifiedData;
 }
@@ -327,7 +299,6 @@ export const fetchCurrentWeather = async (
     }
 
     const data = await response.json();
-    console.log('Raw API response:', data);
 
     // Fetch detailed weather data including UV index
     const detailedData = await fetchDetailedWeather(data.coord.lat, data.coord.lon);
@@ -363,7 +334,14 @@ export const fetchCurrentWeather = async (
         lon: data.coord.lon,
       },
       uvi: detailedData?.current?.uvi || 0,
-      rainProbability: detailedData?.hourly?.[0]?.pop || 0,
+      rainProbability: (() => {
+        const pop = detailedData?.hourly?.[0]?.pop || 0;
+        const weatherMain = detailedData?.hourly?.[0]?.weather?.[0]?.main;
+        
+        const validatedPop = validateRainProbability(pop, weatherMain);
+        
+        return validatedPop;
+      })(),
       clouds: data.clouds?.all || 0,
       rain1h: data.rain?.['1h'],
     };
@@ -613,7 +591,6 @@ export const fetchWeatherByCoordinates = async (
     }
 
     const data = await response.json();
-    console.log('Raw API response:', data);
 
     // Fetch detailed weather data including UV index
     const detailedData = await fetchDetailedWeather(data.coord.lat, data.coord.lon);
@@ -649,7 +626,14 @@ export const fetchWeatherByCoordinates = async (
         lon: data.coord.lon,
       },
       uvi: detailedData?.current?.uvi || 0,
-      rainProbability: detailedData?.hourly?.[0]?.pop || 0,
+      rainProbability: (() => {
+        const pop = detailedData?.hourly?.[0]?.pop || 0;
+        const weatherMain = detailedData?.hourly?.[0]?.weather?.[0]?.main;
+        
+        const validatedPop = validateRainProbability(pop, weatherMain);
+        
+        return validatedPop;
+      })(),
       clouds: data.clouds?.all || 0,
       rain1h: data.rain?.['1h'],
     };
@@ -671,9 +655,10 @@ async function fetchDetailedWeather(lat: number, lon: number): Promise<any> {
       throw new Error('Failed to fetch detailed weather data');
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    return data;
   } catch (error) {
-    console.error('Error fetching detailed weather:', error);
     return null;
   }
 }
@@ -682,4 +667,25 @@ async function fetchDetailedWeather(lat: number, lon: number): Promise<any> {
 export const getWeatherIconUrl = (iconCode: string): string => {
   // Log icon code before generating URL
   return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+};
+
+/**
+ * Validate and cap rain probability to prevent unrealistic 100% values
+ * @param pop - Raw probability of precipitation from API (0-1)
+ * @param weatherMain - Current weather condition (optional, for cross-validation)
+ * @returns Validated rain probability (0-0.95)
+ */
+export const validateRainProbability = (pop: number, weatherMain?: string): number => {
+  // Cap rain probability at 95% to avoid unrealistic 100% values
+  let validatedPop = Math.min(pop || 0, 0.95);
+  
+  // If hourly data shows very high rain probability, cross-reference with weather condition
+  if (validatedPop > 0.8) {
+    // If current weather doesn't indicate rain, reduce the probability
+    if (weatherMain && !['Rain', 'Drizzle', 'Thunderstorm'].includes(weatherMain)) {
+      validatedPop = Math.min(validatedPop, 0.7); // Cap at 70% if current weather doesn't show rain
+    }
+  }
+  
+  return validatedPop;
 }; 

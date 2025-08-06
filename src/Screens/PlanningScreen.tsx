@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
@@ -27,7 +28,8 @@ import { generateResponse } from '../services/openaiService';
 import { requestNotificationPermission } from '../Notifications/UseNotification';
 import { scheduleEventNotification, cancelEventNotification, updateEventNotification } from '../Notifications/EventNotifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getMaterialWeatherIcon } from '../services/weatherService';
+import { getMaterialWeatherIcon, validateRainProbability } from '../services/weatherService';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 // Planned event type
 interface PlannedEvent {
@@ -87,7 +89,7 @@ interface WeatherTimeData {
   selectedTime: number;
 }
 
-const PlanningScreen = ({ navigation }: { navigation: any }) => {
+const PlanningScreen = ({ navigation }: { navigation: StackNavigationProp<any> }) => {
   // State for selected activity, date, time, and duration
   const [selectedActivity, setSelectedActivity] = useState('');
   const [selectedDuration, setSelectedDuration] = useState('1 hour');
@@ -1033,7 +1035,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                       </Text>
                       {item.pop > 0 && (
                         <Text style={styles.forecastRain}>
-                          {Math.round(item.pop * 100)}%
+                          {Math.round(validateRainProbability(item.pop) * 100)}%
                         </Text>
                       )}
                     </View>
@@ -1375,7 +1377,7 @@ const PlanningScreen = ({ navigation }: { navigation: any }) => {
                     </View>
                     <View style={styles.bulletPoint}>
                       <Text style={styles.bullet}>•</Text>
-                      <Text style={styles.bulletText}>Rain Chance: {Math.round((getWeatherForSelectedTime()?.hourly.pop || 0) * 100)}%</Text>
+                      <Text style={styles.bulletText}>Rain Chance: {Math.round(validateRainProbability(getWeatherForSelectedTime()?.hourly.pop || 0) * 100)}%</Text>
                     </View>
                     <View style={styles.bulletPoint}>
                       <Text style={styles.bullet}>•</Text>

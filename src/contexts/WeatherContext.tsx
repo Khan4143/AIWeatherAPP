@@ -34,10 +34,13 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) =>
     currentWeather, 
     forecast, 
     isLoading, 
-    error, 
+    error: weatherError, 
     fetchWeather,
     fetchForecast
   } = useWeather({ units: preferredUnits, autoFetch: false });
+
+  // Ensure error is always defined
+  const error = weatherError || null;
 
   // Add effect to handle unit changes
   useEffect(() => {
@@ -97,8 +100,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) =>
     }
     
     // If it's been less than 5 minutes since last fetch, don't fetch again
-    // unless forced or there was an error
-    if ((now - lastFetchTime) < fiveMinutesInMs && !error) {
+    if ((now - lastFetchTime) < fiveMinutesInMs) {
       console.log("WeatherContext: Less than 5 minutes since last fetch, reusing cached data");
       return forecast;
     }
@@ -108,7 +110,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) =>
     const result = await fetchForecast(city);
     setLastFetchTime(now);
     return result;
-  }, [lastFetchedLocation, lastFetchTime, currentWeather, forecast, error, fetchForecast]);
+  }, [lastFetchedLocation, lastFetchTime, currentWeather, forecast, fetchForecast]);
 
   // Force refresh function to manually trigger weather data refresh
   const forceRefresh = useCallback(async () => {

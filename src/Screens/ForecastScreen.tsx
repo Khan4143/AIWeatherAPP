@@ -31,6 +31,8 @@ import { UserData } from '../Screens/UserInfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash/debounce';
 import { UserDataManager } from '../utils/userDataManager';
+import { validateRainProbability } from '../services/weatherService';
+import { useDeviceMeta } from '../Notifications/Location';
 
 type ForecastScreenProps = {
   navigation: StackNavigationProp<any>;
@@ -54,10 +56,10 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   const [citySearchModalVisible, setCitySearchModalVisible] = useState(false);
   const route = useRoute();
   const params = route.params as RouteParams;
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Use WeatherContext for current location and forecast
-  const { forecast, isLoading: isLoadingWeather, error, fetchForecastForCity, preferredUnits } = useWeatherContext();
+  const { forecast, currentWeather, isLoading: isLoadingWeather, error, isRefreshing, fetchForecastForCity, preferredUnits } = useWeatherContext();
+  const { saveDeviceData } = useDeviceMeta();
   const [location, setLocation] = useState<string | null>(null);
 
   // State for city search and management
@@ -93,8 +95,18 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         isDefault: city.display === userDataLocation
       }));
       
-      // If the default location isn't in the list, add it
-      if (!updatedCities.some(city => city.display === userDataLocation)) {
+      // Check if the default location or a city with the same base name already exists
+      const cityExists = updatedCities.some(city => {
+        // Check exact match
+        if (city.display === userDataLocation) return true;
+        
+        // Check if any existing city starts with the same base name
+        const baseName = userDataLocation.split(',')[0].trim();
+        const existingBaseName = city.display.split(',')[0].trim();
+        return baseName === existingBaseName;
+      });
+      
+      if (!cityExists) {
         updatedCities.push({
           key: `default-${userDataLocation}-${Date.now()}`,
           display: userDataLocation,
@@ -102,29 +114,30 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         });
       }
       
-      setSavedCities(updatedCities);
-      saveCities(updatedCities);
+      const saveAndUpdate = async () => {
+        const uniqueCities = await saveCities(updatedCities);
+        setSavedCities(uniqueCities);
+      };
+      
+      saveAndUpdate();
     }
-  }, [UserData.location]);
-
-  // Use forecast as weatherData
-  const weatherData: ForecastData | null = forecast;
+  }, [UserData.location]); // Removed savedCities from dependency array
 
   // Get current hour's forecast data
   const getCurrentHourForecast = () => {
-    if (!weatherData?.hourly || weatherData.hourly.length === 0) return null;
+    if (!forecast?.hourly || forecast.hourly.length === 0) return null;
     
     const now = new Date();
     const currentHour = now.getHours();
     
     // Find the forecast entry for the current hour
-    const currentHourForecast = weatherData.hourly.find(hour => {
+    const currentHourForecast = forecast.hourly.find(hour => {
       const hourDate = new Date(hour.date * 1000);
       return hourDate.getHours() === currentHour;
     });
     
     // If not found, return the first hour (closest to current time)
-    return currentHourForecast || weatherData.hourly[0];
+    return currentHourForecast || forecast.hourly[0];
   };
 
   // Generate accurate weather description based on icon code
@@ -169,12 +182,10 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
 
   // Get weather icon based on condition
   const getWeatherIcon = (iconCode: string): string => {
-    console.log('Received weather icon code:', iconCode);
     if (!iconCode) return 'weather-cloudy';
     
     // Get the mapped icon
     const iconName = getMaterialWeatherIcon(iconCode);
-    console.log('Mapped to icon:', iconName);
     return iconName;
   };
 
@@ -240,19 +251,19 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
 
   // Render the current day's detailed forecast
   const renderDetailedForecast = () => {
-    if (!weatherData || isLoadingWeather) {
+    if (!forecast || isLoadingWeather) {
       return <ActivityIndicator size="large" color="#4361EE" />;
     }
 
-    const currentForecast = weatherData.daily[selectedDay];
-    const currentWeather = selectedDay === 0 ? weatherData.current : null;
-    // For hourly forecast, use weatherData.hourly (first 24 hours for today, or filter by date for other days)
-    let hourlyData = weatherData.hourly;
+    const currentForecast = forecast.daily[selectedDay];
+    const currentWeather = selectedDay === 0 ? forecast.current : null;
+    // For hourly forecast, use forecast.hourly (first 24 hours for today, or filter by date for other days)
+    let hourlyData = forecast.hourly;
     if (selectedDay !== 0) {
       const selectedDate = new Date(currentForecast.date * 1000).getDate();
-      hourlyData = weatherData.hourly.filter(h => new Date(h.date * 1000).getDate() === selectedDate);
+      hourlyData = forecast.hourly.filter(h => new Date(h.date * 1000).getDate() === selectedDate);
     } else {
-      hourlyData = weatherData.hourly.slice(0, 24); // Show 24 hourly entries for today
+      hourlyData = forecast.hourly.slice(0, 24); // Show 24 hourly entries for today
     }
 
     const tempUnit = preferredUnits === 'imperial' ? 'F' : 'C';
@@ -326,7 +337,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
               <Text style={styles.hourlyTemp}>{Math.round(hour.temperature.day)}°{tempUnit}</Text>
               <View style={styles.rainChanceContainer}>
                 <MaterialCommunityIcons name="water" size={adjust(12)} color="#5D9CEC" />
-                <Text style={styles.rainChanceText}>{Math.round((hour.pop || 0) * 100)}%</Text>
+                <Text style={styles.rainChanceText}>{Math.round(validateRainProbability(hour.pop) * 100)}%</Text>
               </View>
             </View>
           ))}
@@ -344,7 +355,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
             </Text>
           </View>
           <View style={styles.detailItem}>
-            <MaterialCommunityIcons name="water-percent" size={adjust(20)} color="#4361EE" />
+            <MaterialCommunityIcons name="water-percent" size={adjust(20)} color="#4361EE"/>
             <Text style={styles.detailLabel}>Humidity</Text>
             <Text style={styles.detailValue}>
               {selectedDay === 0
@@ -370,7 +381,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           <View style={styles.detailItem}>
             <MaterialCommunityIcons name="weather-rainy" size={adjust(20)} color="#4361EE" />
             <Text style={styles.detailLabel}>Rain Chance</Text>
-            <Text style={styles.detailValue}>{Math.round((currentForecast.pop || 0) * 100)}%</Text>
+            <Text style={styles.detailValue}>{Math.round(validateRainProbability(currentForecast.pop) * 100)}%</Text>
           </View>
         </View>
       </View>
@@ -393,8 +404,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           ...city,
           isDefault: city.display === UserData.location
         }));
-        setSavedCities(updatedCities);
-        saveCities(updatedCities); // Save the updated cities back to storage
+        const uniqueCities = await saveCities(updatedCities);
+        setSavedCities(uniqueCities);
       } else if (UserData.location) {
         // If no saved cities but we have a default location, add it
         const defaultCity: CityObject = {
@@ -402,26 +413,35 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           display: UserData.location,
           isDefault: true
         };
-        setSavedCities([defaultCity]);
-        saveCities([defaultCity]);
+        const uniqueCities = await saveCities([defaultCity]);
+        setSavedCities(uniqueCities);
       }
     } catch (error) {
-      console.error('Error loading saved cities:', error);
+      // console.error('Error loading saved cities:', error);
     }
   };
 
   // Save cities to storage
-  const saveCities = async (cities: CityObject[]) => {
+  const saveCities = useCallback(async (cities: CityObject[]) => {
     try {
-      await AsyncStorage.setItem(SAVED_CITIES_KEY, JSON.stringify(cities));
+      // Remove duplicates before saving
+      const uniqueCities = cities.filter((city, index, self) => 
+        index === self.findIndex(c => c.display === city.display)
+      );
+      
+      await AsyncStorage.setItem(SAVED_CITIES_KEY, JSON.stringify(uniqueCities));
+      
+      return uniqueCities; // Return the deduplicated cities
     } catch (error) {
-      console.error('Error saving cities:', error);
+      // console.error('Error saving cities:', error);
+      return cities; // Return original cities if save fails
     }
-  };
+  }, []);
 
   // Remove a saved city
-  const removeSavedCity = useCallback((cityKey: string) => {
+  const removeSavedCity = useCallback(async (cityKey: string) => {
     const cityToRemove = savedCities.find(city => city.key === cityKey);
+    
     if (cityToRemove?.isDefault) {
       Alert.alert(
         "Can't Remove Default Location",
@@ -432,8 +452,8 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
     }
     
     const updatedCities = savedCities.filter(city => city.key !== cityKey);
-    setSavedCities(updatedCities);
-    saveCities(updatedCities);
+    const uniqueCities = await saveCities(updatedCities);
+    setSavedCities(uniqueCities);
   }, [savedCities, saveCities]);
 
   // Fetch from Google Places API
@@ -450,22 +470,18 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
       setPlacesResults([]);
       
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=(cities)&key=${GOOGLE_PLACES_API_KEY}`;
-      console.log('Request URL (without API key):', url.replace(GOOGLE_PLACES_API_KEY, 'API_KEY'));
       
       const response = await fetch(url);
-      console.log('Places API Response Status:', response.status);
-      console.log('Places API Response Status Text:', response.statusText);
       
       const data = await response.json();
-      console.log('Places API Response:', data);
       
       if (data.error) {
-        console.error('Places API Error:', {
-          code: data.error.code,
-          message: data.error.message,
-          status: data.error.status,
-          details: data.error.details
-        });
+        // console.error('Places API Error:', {
+        //   code: data.error.code,
+        //   message: data.error.message,
+        //   status: data.error.status,
+        //   details: data.error.details
+        // });
         return;
       }
       
@@ -481,15 +497,15 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         
         setPlacesResults(formattedResults);
       } else if (data.status === 'REQUEST_DENIED') {
-        console.error('REQUEST_DENIED - Common causes:');
-        console.error('1. Places API not enabled in Google Cloud Console');
-        console.error('2. Invalid API key');
-        console.error('3. Billing not enabled');
-        console.error('4. API key restrictions preventing access');
+        // console.error('REQUEST_DENIED - Common causes:');
+        // console.error('1. Places API not enabled in Google Cloud Console');
+        // console.error('2. Invalid API key');
+        // console.error('3. Billing not enabled');
+        // console.error('4. API key restrictions preventing access');
       }
       
     } catch (error) {
-      console.error('Error in searchPlaces:', error);
+      // console.error('Error in searchPlaces:', error);
     } finally {
       setIsPlacesLoading(false);
     }
@@ -532,6 +548,9 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         const cityName = data.result.name;
         const formattedAddress = data.result.formatted_address;
         
+        // Extract just the city name for weather API (first part before comma)
+        const weatherCityName = cityName.split(',')[0].trim();
+        
         // Create city object
         const cityObj: CityObject = {
           key: `${placeId}-${Date.now()}`,
@@ -539,7 +558,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           isDefault: false
         };
         
-        // Process the selected city
+        // Process the selected city using the extracted city name for weather API
         selectCity(cityObj);
         
         // Clear search
@@ -547,32 +566,44 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         setPlacesResults([]);
       }
     } catch (error) {
-      console.error('Error selecting place:', error);
+      // console.error('Error selecting place:', error);
     }
   };
 
   // Select a city to display weather for
-  const selectCity = useCallback((city: CityObject) => {
+  const selectCity = useCallback(async (city: CityObject) => {
+    // Extract city name from display (first part before comma)
+    const cityNameForWeather = city.display.split(',')[0].trim();
+    
     // Update the UserData location directly
-    UserData.location = city.display;
+    UserData.location = cityNameForWeather;
     
     // Update local state for UI
-    setLocation(city.display);
+    setLocation(cityNameForWeather);
     
     // Fetch forecast for the selected city
-    fetchForecastForCity(city.display);
+    fetchForecastForCity(cityNameForWeather);
     
     // Save to persistent storage via UserDataManager
     UserDataManager.saveUserProfile();
+
+    // Save the city change to Firestore (using current location coordinates)
+    if (currentWeather?.coordinates) {
+      saveDeviceData({
+        latitude: currentWeather.coordinates.lat,
+        longitude: currentWeather.coordinates.lon,
+        cityDisplay: cityNameForWeather
+      });
+    }
     
     // If this isn't a saved city yet, add it
     const isSaved = savedCities.some(savedCity => savedCity.display === city.display);
     if (!isSaved) {
       // Check if this is the default location from UserData
-      const isDefaultLocation = city.display === UserData.location;
+      const isDefaultLocation = cityNameForWeather === UserData.location;
       const updatedCities = [...savedCities, { ...city, isDefault: isDefaultLocation }];
-      setSavedCities(updatedCities);
-      saveCities(updatedCities);
+      const uniqueCities = await saveCities(updatedCities);
+      setSavedCities(uniqueCities);
     }
     
     // Close the modal and handle navigation
@@ -580,14 +611,14 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
     if (params?.fromHomeScreen) {
       navigation.goBack();
     }
-  }, [fetchForecastForCity, savedCities, saveCities, navigation, params?.fromHomeScreen]);
+  }, [fetchForecastForCity, savedCities, saveCities, navigation, params?.fromHomeScreen, saveDeviceData, currentWeather?.coordinates]);
 
   // Add a city to saved cities
-  const addCity = useCallback((city: CityObject) => {
+  const addCity = useCallback(async (city: CityObject) => {
     if (!savedCities.some(savedCity => savedCity.display === city.display)) {
       const updatedCities = [...savedCities, { ...city, isDefault: false }];
-      setSavedCities(updatedCities);
-      saveCities(updatedCities);
+      const uniqueCities = await saveCities(updatedCities);
+      setSavedCities(uniqueCities);
       
       // Select the city after adding it
       selectCity(city);
@@ -618,20 +649,22 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   const handleRefresh = async () => {
     if (isRefreshing) return; // Prevent multiple refreshes
     
-    setIsRefreshing(true);
     try {
       const userDataLocation = UserData.location;
       if (userDataLocation) {
         await fetchForecastForCity(userDataLocation);
       }
     } catch (error) {
-      console.error('Error refreshing forecast:', error);
-    } finally {
-      setIsRefreshing(false);
+      // console.error('Error refreshing forecast:', error);
     }
   };
 
-  if (!weatherData && isLoadingWeather) {
+  // Log the first 5 days of the forecast to inspect icon codes and weather data
+  if (forecast?.daily) {
+    console.log('[5-Day Forecast] Raw daily array:', forecast.daily.slice(0, 5));
+  }
+
+  if (!forecast && isLoadingWeather) {
     return (
       <LinearGradient colors={['#b3d4ff', '#4361EE']} style={styles.background} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
         <SafeAreaViewRN style={styles.safeArea}>
@@ -703,40 +736,46 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
               contentContainerStyle={styles.forecastDaysScrollContent}
               style={styles.forecastDaysScroll}
             >
-              {weatherData?.daily.slice(0, 5).map((day, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.forecastDayCard,
-                    selectedDay === index && styles.selectedDayCard,
-                  ]}
-                  onPress={() => setSelectedDay(index)}
-                  activeOpacity={0.85}
-                >
-                  <Text
+              {forecast?.daily.slice(0, 5).map((day, index) => {
+                const iconCode = day.weather.icon;
+                const weatherDesc = day.weather.description;
+                const iconName = getWeatherIcon(iconCode);
+                // console.log('[5-Day Forecast] API icon:', iconCode, 'desc:', weatherDesc, 'UI icon:', iconName, 'index:', index);
+                return (
+                  <TouchableOpacity
+                    key={index}
                     style={[
-                      styles.forecastDayText,
-                      selectedDay === index && styles.selectedDayText,
+                      styles.forecastDayCard,
+                      selectedDay === index && styles.selectedDayCard,
                     ]}
+                    onPress={() => setSelectedDay(index)}
+                    activeOpacity={0.85}
                   >
-                    {index === 0 ? 'Today' : format(new Date(day.date * 1000), 'EEE')}
-                  </Text>
-                  <MaterialCommunityIcons
-                    name={getWeatherIcon(day.weather.icon)}
-                    size={adjust(28)}
-                    color={selectedDay === index ? '#FFF' : getWeatherIconColor(day.weather.icon)}
-                    style={{ marginVertical: adjust(2) }}
-                  />
-                  <Text
-                    style={[
-                      styles.forecastDayTemp,
-                      selectedDay === index && styles.selectedDayText,
-                    ]}
-                  >
-                    {Math.round(day.temperature.max)}°/{Math.round(day.temperature.min)}°
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.forecastDayText,
+                        selectedDay === index && styles.selectedDayText,
+                      ]}
+                    >
+                      {index === 0 ? 'Today' : format(new Date(day.date * 1000), 'EEE')}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={iconName}
+                      size={adjust(28)}
+                      color={selectedDay === index ? '#FFF' : getWeatherIconColor(iconCode)}
+                      style={{ marginVertical: adjust(2) }}
+                    />
+                    <Text
+                      style={[
+                        styles.forecastDayTemp,
+                        selectedDay === index && styles.selectedDayText,
+                      ]}
+                    >
+                      {Math.round(day.temperature.max)}°/{Math.round(day.temperature.min)}°
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
           <View style={styles.spacer} />
@@ -795,7 +834,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
                 <View style={styles.citySuggestionsContainer}>
                   {isPlacesLoading ? (
                     <View style={styles.cityLoadingContainer}>
-                      <ActivityIndicator size="small" color="#4361EE" />
+                      <ActivityIndicator size="small" color="#fff" />
                       <Text style={styles.cityLoadingText}>Searching cities...</Text>
                     </View>
                   ) : placesResults.length > 0 ? (
@@ -868,7 +907,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
                         <View style={styles.savedCityItem}>
                           <TouchableOpacity 
                             style={styles.savedCityTextContainer}
-                            onPress={() => selectCity(item)}
+                            onPress={() => selectCity(item)} // Pass the display name for weather API
                           >
                             <Ionicons 
                               name={item.isDefault ? "location" : "location-outline"} 
@@ -877,9 +916,23 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
                             />
                             <Text style={styles.savedCityText}>{item.display}</Text>
                           </TouchableOpacity>
-                          {!item.isDefault && (
+                          {!item.isDefault && (() => {
+                            // Check if this is the currently selected city
+                            const currentLocation = currentWeather?.location;
+                            const cityBaseName = item.display.split(',')[0].trim();
+                            const currentBaseName = currentLocation?.split(',')[0].trim();
+                            const isCurrentCity = currentBaseName === cityBaseName;
+                            
+                            return !isCurrentCity;
+                          })() && (
                             <TouchableOpacity 
-                              onPress={() => removeSavedCity(item.key)}
+                              onPress={async () => {
+                                try {
+                                  await removeSavedCity(item.key);
+                                } catch (error) {
+                                  // console.error('Error removing city:', error);
+                                }
+                              }}
                               style={styles.removeCityButton}
                             >
                               <Ionicons name="close-circle" size={adjust(20)} color="#FF6B6B" />
@@ -935,6 +988,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: adjust(12), // Reduced from 16
     paddingVertical: adjust(6), // Reduced from 8
+    borderWidth: 0, // Remove any potential border
   },
   locationContainer: {
     flexDirection: 'row',
@@ -942,6 +996,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: adjust(15),
     width: '100%',
+    borderWidth: 0, // Remove any potential border
   },
   locationButton: {
     flexDirection: 'row',
@@ -952,6 +1007,7 @@ const styles = StyleSheet.create({
     paddingVertical: adjust(6),
     flex: 1,
     marginRight: adjust(10),
+    borderWidth: 0, // Remove any potential border
   },
   locationText: {
     fontSize: adjust(12),
@@ -966,17 +1022,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 2,
+    borderWidth: 0, // Remove any potential border
   },
   refreshButtonDisabled: {
     opacity: 0.7,
   },
   addCityButton: {
     padding: adjust(4), // Added padding for touch target
+    borderWidth: 0, // Remove any potential border
   },
   forecastDayCard: {
     backgroundColor: '#fff',
