@@ -6,15 +6,11 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Platform,
   Keyboard,
-  StatusBar,
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import adjust from '../utils/adjust';
 import { useWeatherContext } from '../contexts/WeatherContext';
@@ -26,6 +22,9 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigations/TabNavigator';
+
+import NativeAdComponent from '../components/NativeAdComponent';
+import { useAdMob } from '../contexts/AdContext';
 
 interface Message {
   id: string;
@@ -46,9 +45,10 @@ const predefinedQuestions = [
 ];
 
 const CommuteScreen = () => {
-  const { currentWeather, forecast, preferredUnits } = useWeatherContext();
+  const { currentWeather } = useWeatherContext();
   const userLocation = UserData.location || 'your location';
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList, 'Commute'>>();
+  const { initialized } = useAdMob();
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -72,27 +72,21 @@ const CommuteScreen = () => {
     const showKeyboard = () => {
       setIsKeyboardVisible(true);
       scrollToBottom();
-      
-      // Use correct typing for navigation options
       navigation.getParent()?.setOptions({
         tabBarStyle: { display: 'none' }
       });
     };
-    
     const hideKeyboard = () => {
       setIsKeyboardVisible(false);
       navigation.getParent()?.setOptions({
         tabBarStyle: undefined
       });
     };
-    
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', showKeyboard);
     const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', hideKeyboard);
-    
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
-      // Restore tab bar style when component unmounts
       navigation.getParent()?.setOptions({
         tabBarStyle: undefined
       });
@@ -100,9 +94,7 @@ const CommuteScreen = () => {
   }, [navigation]);
 
   const scrollToBottom = () => {
-    if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({ animated: true });
-    }
+    scrollViewRef.current?.scrollToEnd({ animated: true });
   };
 
   const showToast = (message: string) => {
@@ -127,19 +119,15 @@ const CommuteScreen = () => {
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
-
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputText.trim(),
       sender: 'user',
       timestamp: new Date(),
     };
-
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
     scrollToBottom();
-
-    // Add loading message
     const loadingMessage: Message = {
       id: 'loading',
       text: '',
@@ -147,36 +135,23 @@ const CommuteScreen = () => {
       timestamp: new Date(),
       loading: true,
     };
-
     setMessages(prev => [...prev, loadingMessage]);
     setIsLoading(true);
-
     try {
-      if (!currentWeather) {
-        throw new Error('Weather data is not available');
-      }
-
-      // Generate response using OpenAI API
+      if (!currentWeather) throw new Error('Weather data is not available');
       const response = await generateResponse(userMessage.text, currentWeather);
-
-      // Remove loading message and add response
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== 'loading');
-        return [
-          ...filtered,
-          {
-            id: Date.now().toString(),
-            text: response.text,
-            sender: 'skylar',
-            timestamp: new Date(),
-          },
-        ];
+        return [...filtered, {
+          id: Date.now().toString(),
+          text: response.text,
+          sender: 'skylar',
+          timestamp: new Date(),
+        }];
       });
     } catch (error) {
       console.error('Error generating response:', error);
       showToast('Failed to get response. Please try again.');
-      
-      // Remove loading message
       setMessages(prev => prev.filter(msg => msg.id !== 'loading'));
     } finally {
       setIsLoading(false);
@@ -186,7 +161,6 @@ const CommuteScreen = () => {
 
   const handleQuestionSelect = (question: string) => {
     setInputText(question);
-    // Focus the input after a short delay to ensure the keyboard is shown
     setTimeout(() => {
       inputRef.current?.focus();
     }, 100);
@@ -211,126 +185,109 @@ const CommuteScreen = () => {
   };
 
   return (
-    <>
-      {/* <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} /> */}
-      <LinearGradient colors={['#b3d4ff', '#4361EE']} style={styles.background} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
-        <View style={styles.safeArea}>
-          <LinearGradient 
-            colors={['#4361EE', '#3254d1']} 
-            style={styles.headerContainer}
-            start={{ x: 0, y: 0 }} 
-            end={{ x: 1, y: 0 }}
-          >
-            <View style={styles.header}>
-              <View style={styles.avatarContainer}>
-                <MaterialCommunityIcons name="robot" size={adjust(18)} color="#fff" />
-              </View>
-              <Text style={styles.headerTitle}>Chat with Skylar</Text>
+    <LinearGradient colors={['#b3d4ff', '#4361EE']} style={styles.background} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
+      <View style={styles.safeArea}>
+        <LinearGradient colors={['#4361EE', '#3254d1']} style={styles.headerContainer} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+          <View style={styles.header}>
+            <View style={styles.avatarContainer}>
+              <MaterialCommunityIcons name="robot" size={adjust(18)} color="#fff" />
             </View>
-            <View style={styles.headerDivider} />
-          </LinearGradient>
-
-          <ScrollView 
-            ref={scrollViewRef} 
-            style={styles.chatContainer} 
-            contentContainerStyle={styles.chatContent} 
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {messages.map((message) => (
-              <View
-                key={`message-${message.id}`}
-                style={[
-                  styles.messageBubble,
-                  message.sender === 'user' ? styles.userMessage : styles.skylarMessage,
-                ]}
-              >
-                {message.sender === 'skylar' && (
-                  <View style={styles.messageBubbleAvatar}>
-                    <MaterialCommunityIcons name="robot" size={adjust(16)} color="#fff" />
-                  </View>
-                )}
-                <View
-                  style={[
-                    styles.messageContent,
-                    message.sender === 'user' ? styles.userMessageContent : styles.skylarMessageContent,
-                  ]}
-                >
-                  {renderMessageContent(message)}
-                </View>
-                {message.sender === 'user' && (
-                  <View style={styles.userMessageBubbleAvatar}>
-                    <FontAwesome name="user" size={adjust(14)} color="#fff" />
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[
-              styles.questionsOuterContainer,
-              isKeyboardVisible ? styles.questionsContainerKeyboard : null
-            ]}
-            contentContainerStyle={styles.questionsScrollContent}
-          >
-            {predefinedQuestions.map((question, index) => (
-              <TouchableOpacity
-                key={`question-${question.id}`}
-                style={[
-                  styles.questionButton,
-                  index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
-                ]}
-                onPress={() => handleQuestionSelect(question.text)}
-              >
-                <Text
-                  style={[
-                    styles.questionText,
-                    index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {question.text}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <View style={[
-            styles.inputContainer,
-            isKeyboardVisible ? styles.inputContainerKeyboard : null
-          ]}>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Ask me about today's plans..."
-                placeholderTextColor="#999"
-                value={inputText}
-                onChangeText={setInputText}
-                multiline={false}
-                returnKeyType="send"
-                onSubmitEditing={handleSendMessage}
-              />
-              <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage} disabled={isLoading}>
-                <AntDesign name="arrowup" size={adjust(18)} color="#fff" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.headerTitle}>Chat with Skylar</Text>
           </View>
+          <View style={styles.headerDivider} />
+        </LinearGradient>
 
-          {toastVisible && (
-            <Animated.View style={[styles.toast, { opacity: fadeAnim }]}>
-              <MaterialIcons name="error-outline" size={adjust(16)} color="#fff" />
-              <Text style={styles.toastText}>{toastMessage}</Text>
-            </Animated.View>
-          )}
+        {/* Native Ad at the top matching banner size */}
+        {initialized && (
+          <View style={styles.adContainer}>
+            <NativeAdComponent />
+          </View>
+        )}
+
+        <ScrollView ref={scrollViewRef} style={styles.chatContainer} contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {messages.map((message) => (
+            <View
+              key={`message-${message.id}`}
+              style={[
+                styles.messageBubble,
+                message.sender === 'user' ? styles.userMessage : styles.skylarMessage,
+              ]}
+            >
+              {message.sender === 'skylar' && (
+                <View style={styles.messageBubbleAvatar}>
+                  <MaterialCommunityIcons name="robot" size={adjust(16)} color="#fff" />
+                </View>
+              )}
+              <View
+                style={[
+                  styles.messageContent,
+                  message.sender === 'user' ? styles.userMessageContent : styles.skylarMessageContent,
+                ]}
+              >
+                {renderMessageContent(message)}
+              </View>
+              {message.sender === 'user' && (
+                <View style={styles.userMessageBubbleAvatar}>
+                  <FontAwesome name="user" size={adjust(14)} color="#fff" />
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.questionsOuterContainer, isKeyboardVisible ? styles.questionsContainerKeyboard : null]} contentContainerStyle={styles.questionsScrollContent}>
+          {predefinedQuestions.map((question, index) => (
+            <TouchableOpacity
+              key={`question-${question.id}`}
+              style={[
+                styles.questionButton,
+                index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
+              ]}
+              onPress={() => handleQuestionSelect(question.text)}
+            >
+              <Text
+                style={[
+                  styles.questionText,
+                  index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
+                ]}
+                numberOfLines={1}
+              >
+                {question.text}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={[styles.inputContainer, isKeyboardVisible ? styles.inputContainerKeyboard : null]}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Ask me about today's plans..."
+              placeholderTextColor="#999"
+              value={inputText}
+              onChangeText={setInputText}
+              multiline={false}
+              returnKeyType="send"
+              onSubmitEditing={handleSendMessage}
+            />
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage} disabled={isLoading}>
+              <AntDesign name="arrowup" size={adjust(18)} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
-    </>
+
+        {toastVisible && (
+          <Animated.View style={[styles.toast, { opacity: fadeAnim }]}>
+            <MaterialIcons name="error-outline" size={adjust(16)} color="#fff" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </Animated.View>
+        )}
+      </View>
+    </LinearGradient>
   );
 };
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -576,6 +533,10 @@ const styles = StyleSheet.create({
     fontSize: adjust(12), // Reduced from 14
     marginLeft: adjust(6), // Reduced from 8
     fontWeight: '500',
+  },
+  adContainer: {
+    alignItems: 'center',
+    marginVertical: adjust(4),
   },
 });
 

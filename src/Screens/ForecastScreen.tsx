@@ -33,6 +33,8 @@ import debounce from 'lodash/debounce';
 import { UserDataManager } from '../utils/userDataManager';
 import { validateRainProbability } from '../services/weatherService';
 import { useDeviceMeta } from '../Notifications/Location';
+import NativeAdComponent from '../components/NativeAdComponent';
+import { useAdMob } from '../contexts/AdContext';
 
 type ForecastScreenProps = {
   navigation: StackNavigationProp<any>;
@@ -61,6 +63,7 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   const { forecast, currentWeather, isLoading: isLoadingWeather, error, isRefreshing, fetchForecastForCity, preferredUnits } = useWeatherContext();
   const { saveDeviceData } = useDeviceMeta();
   const [location, setLocation] = useState<string | null>(null);
+  const { initialized } = useAdMob();
 
   // State for city search and management
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,13 +183,37 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
     }
   };
 
-  // Get weather icon based on condition
+  // Get weather icon based on condition (more descriptive icons for Forecast screen only)
   const getWeatherIcon = (iconCode: string): string => {
     if (!iconCode) return 'weather-cloudy';
-    
-    // Get the mapped icon
-    const iconName = getMaterialWeatherIcon(iconCode);
-    return iconName;
+
+    const DESCRIPTIVE_ICONS: { [key: string]: string } = {
+      '01d': 'weather-sunny',
+      '01n': 'weather-night',
+      '02d': 'weather-partly-cloudy',
+      '02n': 'weather-night-partly-cloudy',
+      '03d': 'weather-cloudy',
+      '03n': 'weather-cloudy',
+      '04d': 'weather-cloudy',
+      '04n': 'weather-cloudy',
+      // Show rain + cloud combo for light/showery rain
+      '09d': 'weather-partly-rainy',
+      '09n': 'weather-partly-rainy',
+      // Continuous rain
+      '10d': 'weather-rainy',
+      '10n': 'weather-rainy',
+      // Thunderstorm with rain visuals
+      '11d': 'weather-lightning-rainy',
+      '11n': 'weather-lightning-rainy',
+      // Heavier snow for clearer visual
+      '13d': 'weather-snowy-heavy',
+      '13n': 'weather-snowy-heavy',
+      // Fog/Mist
+      '50d': 'weather-fog',
+      '50n': 'weather-fog',
+    };
+
+    return DESCRIPTIVE_ICONS[iconCode] || 'weather-cloudy';
   };
 
   // Get appropriate icon color based on weather condition
@@ -326,21 +353,34 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.hourlyForecastContainer}
         >
-          {hourlyData.map((hour, index) => (
-            <View key={index} style={styles.hourlyForecastItem}>
-              <Text style={styles.hourlyTime}>{formatTime(new Date(hour.date * 1000).toISOString())}</Text>
-              <MaterialCommunityIcons
-                name={getWeatherIcon(hour.weather.icon)}
-                size={adjust(24)}
-                color={getWeatherIconColor(hour.weather.icon)}
-              />
-              <Text style={styles.hourlyTemp}>{Math.round(hour.temperature.day)}°{tempUnit}</Text>
-              <View style={styles.rainChanceContainer}>
-                <MaterialCommunityIcons name="water" size={adjust(12)} color="#5D9CEC" />
-                <Text style={styles.rainChanceText}>{Math.round(validateRainProbability(hour.pop) * 100)}%</Text>
+          {hourlyData.map((hour, index) => {
+            // Console log for hourly icons from API
+            console.log(`[Hourly Forecast] Hour ${index}:`, {
+              time: formatTime(new Date(hour.date * 1000).toISOString()),
+              apiIconCode: hour.weather.icon,
+              apiDescription: hour.weather.description,
+              mappedIconName: getWeatherIcon(hour.weather.icon),
+              iconColor: getWeatherIconColor(hour.weather.icon),
+              temperature: hour.temperature.day,
+              rainProbability: hour.pop
+            });
+            
+            return (
+              <View key={index} style={styles.hourlyForecastItem}>
+                <Text style={styles.hourlyTime}>{formatTime(new Date(hour.date * 1000).toISOString())}</Text>
+                <MaterialCommunityIcons
+                  name={getWeatherIcon(hour.weather.icon)}
+                  size={adjust(24)}
+                  color={getWeatherIconColor(hour.weather.icon)}
+                />
+                <Text style={styles.hourlyTemp}>{Math.round(hour.temperature.day)}°{tempUnit}</Text>
+                <View style={styles.rainChanceContainer}>
+                  <MaterialCommunityIcons name="water" size={adjust(12)} color="#5D9CEC" />
+                  <Text style={styles.rainChanceText}>{Math.round(validateRainProbability(hour.pop) * 100)}%</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
         {/* Additional weather details */}
         <Text style={styles.sectionTitle}>Weather Details</Text>
@@ -726,7 +766,11 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
         </View>
 
         {/* Main scrollable content */}
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.container} 
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={initialized ? [2] : []}
+        >
           {/* 5-Day forecast cards */}
           <View style={styles.forecastCardsContainer}>
             <Text style={styles.forecastCardsTitle}>5-Day Forecast</Text>
@@ -779,6 +823,12 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
             </ScrollView>
           </View>
           <View style={styles.spacer} />
+          {/* Banner Ad between 5-Day cards and detailed forecast */}
+          {initialized && (
+            <View style={styles.adContainer}>
+              <NativeAdComponent />
+            </View>
+          )}
           {/* Detailed forecast for the selected day */}
           {renderDetailedForecast()}
           <View style={styles.spacer} />
@@ -1392,6 +1442,12 @@ const styles = StyleSheet.create({
   },
   citySuggestionsList: {
     marginTop: adjust(0),
+  },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: adjust(8),
+    paddingHorizontal: 0,
   },
   googlePlacesContainer: {
     marginHorizontal: adjust(14), // Reduced from 16

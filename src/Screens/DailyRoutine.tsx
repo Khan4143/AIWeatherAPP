@@ -26,7 +26,6 @@ import Icon from 'react-native-vector-icons/AntDesign';
 import { UserDataManager } from '../utils/userDataManager';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-const STANDARD_SPACING = adjust(12);
 
 // Commute method options
 const commuteOptions = [
@@ -118,13 +117,13 @@ Object.keys(activityMapping).forEach(key => {
   reverseActivityMapping[displayName] = key;
 });
 
-// Morning activity mapping
-const morningActivityMapping = {
-  'running': 'Running',
-  'gym': 'Gym',
-  'yoga': 'Yoga',
-  'dogwalk_morning': 'Dog Walk'
-};
+// // Morning activity mapping
+// const morningActivityMapping = {
+//   'running': 'Running',
+//   'gym': 'Gym',
+//   'yoga': 'Yoga',
+//   'dogwalk_morning': 'Dog Walk'
+// };
 
 type DailyRoutineProps = {
   navigation: NativeStackNavigationProp<any>;

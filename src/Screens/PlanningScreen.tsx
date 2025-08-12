@@ -30,6 +30,8 @@ import { scheduleEventNotification, cancelEventNotification, updateEventNotifica
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMaterialWeatherIcon, validateRainProbability } from '../services/weatherService';
 import { StackNavigationProp } from '@react-navigation/stack';
+import NativeAdComponent from '../components/NativeAdComponent';
+import { useAdMob } from '../contexts/AdContext';
 
 // Planned event type
 interface PlannedEvent {
@@ -125,6 +127,7 @@ const PlanningScreen = ({ navigation }: { navigation: StackNavigationProp<any> }
   
   // Get weather data from context
   const { forecast, currentWeather, isLoading: isLoadingWeather, preferredUnits } = useWeatherContext();
+  const { initialized } = useAdMob();
 
   // Get appropriate icon color based on weather condition (same as ForecastScreen)
   const getWeatherIconColor = (iconCode: string): string => {
@@ -882,6 +885,7 @@ const PlanningScreen = ({ navigation }: { navigation: StackNavigationProp<any> }
           contentContainerStyle={styles.scrollContainer}
           overScrollMode="never"
           scrollEventThrottle={16}
+          stickyHeaderIndices={initialized ? [2] : []}
         >
           {/* Header section */}
           <View style={styles.header}>
@@ -922,6 +926,15 @@ const PlanningScreen = ({ navigation }: { navigation: StackNavigationProp<any> }
               decelerationRate="normal"
             />
           </View>
+
+          {/* Native Ad near top to ensure visibility */}
+          {initialized && (
+            <View style={styles.adContainer}>
+              <NativeAdComponent />
+            </View>
+          )}
+
+         
 
           {/* Main planning card */}
           <View style={styles.planningCard}>
@@ -1069,6 +1082,8 @@ const PlanningScreen = ({ navigation }: { navigation: StackNavigationProp<any> }
               </TouchableOpacity>
             )}
           </View>
+
+          
 
           {/* Assistant suggestion */}
           <View style={styles.assistantCard}>
@@ -1445,6 +1460,14 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
+  },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: adjust(8),
+    backgroundColor: '#fff',
+    zIndex: 5,
+    elevation: 3,
   },
   scrollContainer: {
     flexGrow: 1,

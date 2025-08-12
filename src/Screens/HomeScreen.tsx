@@ -29,6 +29,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigations/Navigations';
 import { getMaterialWeatherIcon, getFeatherWeatherIcon } from '../services/weatherService';
+import NativeAdComponent from '../components/NativeAdComponent';
+import { useAdMob } from '../contexts/AdContext';
 
 // // Storage key for saved cities
 // const SAVED_CITIES_KEY = 'skylar_saved_cities';
@@ -83,12 +85,7 @@ const getWeatherIcon = (iconCode: string) => {
 const getWeatherIconMaterial = (iconCode: string) => {
   if (!iconCode) return 'weather-cloudy';
   
-  // Log the icon code for debugging
-  console.log('Weather icon code received:', iconCode);
-  
-  // Get the mapped icon
   const iconName = getMaterialWeatherIcon(iconCode);
-  console.log('Mapped to icon:', iconName);
   return iconName;
 };
 
@@ -100,35 +97,35 @@ const getWeatherIconColor = (iconCode: string) => {
   const conditionCode = iconCode.substring(0, 2);
   const isDayTime = iconCode.endsWith('d');
   
-  // Color mapping based on weather condition and time of day
+  
   switch(conditionCode) {
-    case '01': // clear sky
-      return isDayTime ? '#FF9500' : '#3A4CA8'; // orange for day, navy for night
+    case '01': 
+      return isDayTime ? '#FF9500' : '#3A4CA8';
     
-    case '02': // few clouds
-      return isDayTime ? '#4361EE' : '#3A4CA8'; // app blue for day, darker blue for night
+    case '02': 
+      return isDayTime ? '#4361EE' : '#3A4CA8'; 
     
-    case '03': // scattered clouds
-    case '04': // broken clouds
-      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+    case '03': 
+    case '04': 
+      return isDayTime ? '#4361EE' : '#2B3990'; 
     
-    case '09': // shower rain
-      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+    case '09': 
+      return isDayTime ? '#4361EE' : '#2B3990'; 
     
-    case '10': // rain
-      return isDayTime ? '#5D9CEC' : '#2B3990'; // lighter blue for day, darker blue for night
+    case '10': 
+      return isDayTime ? '#5D9CEC' : '#2B3990'; 
     
-    case '11': // thunderstorm
-      return isDayTime ? '#9370DB' : '#6A0DAD'; // medium purple for day, darker purple for night
+    case '11': 
+      return isDayTime ? '#9370DB' : '#6A0DAD'; 
     
-    case '13': // snow
-      return isDayTime ? '#5D9CEC' : '#2B3990'; // light blue for day, darker blue for night
+    case '13': 
+      return isDayTime ? '#5D9CEC' : '#2B3990'; 
     
-    case '50': // mist/fog
-      return isDayTime ? '#4361EE' : '#2B3990'; // app blue for day, darker blue for night
+    case '50': 
+      return isDayTime ? '#4361EE' : '#2B3990'; 
   }
   
-  // Default fallback - use app's primary blue
+  
   return '#4361EE';
 };
 
@@ -140,28 +137,33 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: adjust(8),
+  },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     color: '#fff',
-    marginTop: adjust(8), // Reduced from 10
-    fontSize: adjust(14), // Reduced from 16
+    marginTop: adjust(8), 
+    fontSize: adjust(14), 
   },
   errorText: {
     color: '#fff',
-    marginTop: adjust(8), // Reduced from 10
-    fontSize: adjust(14), // Reduced from 16
+    marginTop: adjust(8), 
+    fontSize: adjust(14), 
   },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: adjust(12),
-    paddingBottom: adjust(80), // Add padding for tab bar
+    paddingBottom: adjust(80),  
   },
   header: {
-    marginTop: adjust(12), // Reduced from 10
-    marginBottom: adjust(12), // Reduced from 15
+    marginTop: adjust(12), 
+    marginBottom: adjust(12), 
   },
   locationContainer: {
     flexDirection: 'row',
@@ -169,200 +171,200 @@ const styles = StyleSheet.create({
     marginBottom: adjust(10),
   },
   headerLocationText: {
-    fontSize: adjust(14), // Reduced from 16
+    fontSize: adjust(14), 
     fontWeight: '600',
     color: '#333',
-    marginLeft: adjust(4), // Reduced from 5
+    marginLeft: adjust(4), 
     marginTop: adjust(1),
   },
   weatherCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Reduced from 15
-    padding: adjust(14), // Reduced from 16
-    marginBottom: adjust(12), // Reduced from 14
+    borderRadius: adjust(12), 
+    padding: adjust(14), 
+    marginBottom: adjust(12), 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Reduced from 2
-    shadowOpacity: 0.08, // Reduced from 0.1
-    shadowRadius: 3, // Reduced from 4
-    elevation: 2, // Reduced from 3
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.08,  
+    shadowRadius: 3, 
+    elevation: 2, 
     position: 'relative',
   },
   weatherIconContainer: {
     position: 'absolute',
-    top: adjust(14), // Reduced from 16
-    right: adjust(14), // Reduced from 16
+    top: adjust(14), 
+    right: adjust(14), 
     alignItems: 'center',
-    marginTop: adjust(4), // Reduced from 5
+    marginTop: adjust(4), 
   },
   weatherDescription: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#666',
-    marginTop: adjust(3), // Reduced from 4
+    marginTop: adjust(3), 
     textAlign: 'center',
   },
   currentTemp: {
-    marginTop: adjust(6), // Reduced from 8
-    marginBottom: adjust(3), // Reduced from 4
+    marginTop: adjust(6), 
+    marginBottom: adjust(3), 
   },
   tempValue: {
-    fontSize: adjust(40), // Reduced from 45
+    fontSize: adjust(40), 
     fontWeight: '600',
     color: '#333',
   },
   tempMinMax: {
-    marginBottom: adjust(14), // Reduced from 16
+    marginBottom: adjust(14), 
   },
   tempRangeText: {
-    fontSize: adjust(12), // Reduced from 14
+    fontSize: adjust(12), 
     color: '#666',
   },
   hourlyForecastScroll: {
-    paddingHorizontal: adjust(4), // Reduced from 5
+    paddingHorizontal: adjust(4), 
     flexDirection: 'row',
   },
   hourlyForecast: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: adjust(6), // Reduced from 8
-    paddingHorizontal: adjust(4), // Reduced from 5
+    marginTop: adjust(6), 
+    paddingHorizontal: adjust(4), 
   },
   hourBlock: {
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: adjust(8), // Reduced from 10
-    paddingVertical: adjust(6), // Reduced from 8
-    paddingHorizontal: adjust(8), // Reduced from 10
-    marginRight: adjust(8), // Reduced from 10
-    minWidth: adjust(42), // Reduced from 48
+    borderRadius: adjust(8), 
+    paddingVertical: adjust(6), 
+    paddingHorizontal: adjust(8), 
+    marginRight: adjust(8), 
+    minWidth: adjust(42), 
   },
   hourText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#333',
-    marginBottom: adjust(4), // Reduced from 6
+    marginBottom: adjust(4), 
     fontWeight: '500',
   },
   hourTemp: {
-    fontSize: adjust(12), // Reduced from 14
+    fontSize: adjust(12), 
     color: '#333',
     fontWeight: '600',
-    marginTop: adjust(4), // Reduced from 6
+    marginTop: adjust(4), 
   },
   infoCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Reduced from 15
-    padding: adjust(12), // Reduced from 14
-    marginBottom: adjust(12), // Reduced from 14
+    borderRadius: adjust(12), 
+    padding: adjust(12), 
+    marginBottom: adjust(12), 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Reduced from 2
-    shadowOpacity: 0.08, // Reduced from 0.1
-    shadowRadius: 3, // Reduced from 4
-    elevation: 2, // Reduced from 3
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.08,  
+    shadowRadius: 3, 
+    elevation: 2, 
   },
   infoContent: {
     flexDirection: 'row',
-    marginBottom: adjust(10), // Reduced from 12
+    marginBottom: adjust(10), 
   },
   infoIcon: {
-    marginRight: adjust(10), // Reduced from 12
+    marginRight: adjust(10), 
     marginTop: adjust(2),
   },
   infoTextContainer: {
     flex: 1,
   },
   infoText: {
-    fontSize: adjust(12), // Reduced from 13
+    fontSize: adjust(12), 
     color: '#333',
-    marginBottom: adjust(3), // Reduced from 4
-    lineHeight: adjust(16), // Reduced from 18
+    marginBottom: adjust(3), 
+    lineHeight: adjust(16), 
   },
   commuteText: {
-    fontSize: adjust(10), // Reduced from 11
+    fontSize: adjust(10), 
     color: '#666',
     fontStyle: 'italic',
   },
   detailsButton: {
     backgroundColor: '#4974FF',
-    borderRadius: adjust(8), // Reduced from 10
-    paddingVertical: adjust(8), // Reduced from 10
-    paddingHorizontal: adjust(18), // Reduced from 22
+    borderRadius: adjust(8), 
+    paddingVertical: adjust(8), 
+    paddingHorizontal: adjust(18), 
     alignSelf: 'center',
     width: '80%',
   },
   detailsButtonText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#fff',
     fontWeight: '600',
     textAlign: 'center',
   },
   outfitCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Reduced from 15
-    padding: adjust(12), // Reduced from 14
-    marginBottom: adjust(12), // Reduced from 14
+    borderRadius: adjust(12), 
+    padding: adjust(12), 
+    marginBottom: adjust(12), 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Reduced from 2
-    shadowOpacity: 0.08, // Reduced from 0.1
-    shadowRadius: 3, // Reduced from 4
-    elevation: 2, // Reduced from 3
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.08,  
+    shadowRadius: 3, 
+    elevation: 2, 
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: adjust(8), // Reduced from 10
+    marginBottom: adjust(8), 
   },
   cardTitle: {
-    fontSize: adjust(12), // Reduced from 13
+    fontSize: adjust(12), 
     fontWeight: '600',
     color: '#333',
-    marginLeft: adjust(6), // Reduced from 8
+    marginLeft: adjust(6), 
   },
   outfitText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#666',
-    marginBottom: adjust(10), // Reduced from 12
-    lineHeight: adjust(16), // Reduced from 18
+    marginBottom: adjust(10), 
+    lineHeight: adjust(16), 
   },
   outfitButton: {
     backgroundColor: '#f9d057',
-    borderRadius: adjust(8), // Reduced from 10
-    paddingVertical: adjust(8), // Reduced from 10
-    paddingHorizontal: adjust(18), // Reduced from 22
+    borderRadius: adjust(8), 
+    paddingVertical: adjust(8), 
+    paddingHorizontal: adjust(18), 
     alignSelf: 'center',
     width: '80%',
   },
   outfitButtonText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#333',
     fontWeight: '600',
     textAlign: 'center',
   },
   routineCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Reduced from 15
-    padding: adjust(12), // Reduced from 14
-    marginBottom: adjust(12), // Reduced from 14
+    borderRadius: adjust(12), 
+    padding: adjust(12), 
+    marginBottom: adjust(12), 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Reduced from 2
-    shadowOpacity: 0.08, // Reduced from 0.1
-    shadowRadius: 3, // Reduced from 4
-    elevation: 2, // Reduced from 3
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.08,  
+    shadowRadius: 3, 
+    elevation: 2, 
   },
   routineText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#666',
-    marginBottom: adjust(10), // Reduced from 12
-    lineHeight: adjust(16), // Reduced from 18
+    marginBottom: adjust(10), 
+    lineHeight: adjust(16), 
   },
   routineButton: {
     backgroundColor: '#4974FF',
-    borderRadius: adjust(8), // Reduced from 10
-    paddingVertical: adjust(8), // Reduced from 10
-    paddingHorizontal: adjust(18), // Reduced from 22
+    borderRadius: adjust(8), 
+    paddingVertical: adjust(8), 
+    paddingHorizontal: adjust(18), 
     alignSelf: 'center',
     width: '80%',
   },
   routineButtonText: {
-    fontSize: adjust(11), // Reduced from 12
+    fontSize: adjust(11), 
     color: '#fff',
     fontWeight: '600',
     textAlign: 'center',
@@ -375,72 +377,72 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: '#fff',
-    borderRadius: adjust(12), // Reduced from 15
+    borderRadius: adjust(12), 
     width: '85%',
-    padding: adjust(16), // Reduced from 20
+    padding: adjust(16), 
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 }, // Reduced from 2
-    shadowOpacity: 0.2, // Reduced from 0.25
-    shadowRadius: 3, // Reduced from 3.84
-    elevation: 4, // Reduced from 5
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.2,  
+    shadowRadius: 3,  
+    elevation: 4, 
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: adjust(12), // Reduced from 15
+    marginBottom: adjust(12), 
   },
   modalTitle: {
-    fontSize: adjust(14), // Reduced from 16
+    fontSize: adjust(14), 
     fontWeight: '600',
     color: '#333',
     flex: 1,
-    marginLeft: adjust(8), // Reduced from 10
+    marginLeft: adjust(8), 
   },
   closeButton: {
-    width: adjust(24), // Reduced from 28
-    height: adjust(24), // Reduced from 28
-    borderRadius: adjust(12), // Reduced from 14
+    width: adjust(24), 
+    height: adjust(24), 
+    borderRadius: adjust(12), 
     backgroundColor: '#f1f1f1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalContent: {
-    paddingHorizontal: adjust(4), // Reduced from 5
+    paddingHorizontal: adjust(4), 
   },
   modalText: {
-    fontSize: adjust(12), // Reduced from 14
+    fontSize: adjust(12), 
     color: '#666',
-    marginBottom: adjust(12), // Reduced from 15
-    lineHeight: adjust(18), // Reduced from 20
+    marginBottom: adjust(12), 
+    lineHeight: adjust(18), 
   },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: adjust(10), // Reduced from 12
+    marginBottom: adjust(10), 
   },
   modalItemIcon: {
-    marginRight: adjust(6), // Reduced from 8
+    marginRight: adjust(6), 
   },
   modalItemText: {
     flex: 1,
     color: '#333',
-    fontSize: adjust(12), // Reduced from 14
-    marginLeft: adjust(8), // Reduced from 10
-    marginRight: adjust(8), // Reduced from 10
+    fontSize: adjust(12), 
+    marginLeft: adjust(8), 
+    marginRight: adjust(8), 
     textAlign: 'left',
-    paddingVertical: adjust(3), // Reduced from 4
-    paddingRight: adjust(6), // Reduced from 8
+    paddingVertical: adjust(3), 
+    paddingRight: adjust(6), 
   },
   locationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: adjust(14), // Reduced from 16
-    paddingVertical: adjust(10), // Reduced from 12
+    paddingHorizontal: adjust(14), 
+    paddingVertical: adjust(10), 
   },
   locationText: {
-    fontSize: adjust(16), // Reduced from 18
+    fontSize: adjust(16), 
     color: '#333',
-    marginLeft: adjust(6), // Reduced from 8
+    marginLeft: adjust(6), 
   },
 });
 
@@ -533,6 +535,7 @@ const HomeScreen = () => {
     preferredUnits,
     forceRefresh 
   } = useWeatherContext();
+  const { initialized } = useAdMob();
   const [userName, setUserName] = useState('');
   const [outfitLoading, setOutfitLoading] = useState(false);
   const [outfitGemini, setOutfitGemini] = useState<string | null>(null);
@@ -1155,6 +1158,13 @@ const HomeScreen = () => {
             )}
           </View>
 
+          {/* Adaptive test banner between weather card and info card */}
+          {initialized && (
+            <View style={styles.adContainer}>
+              <NativeAdComponent />
+            </View>
+          )}
+ 
           {/* Weather Info Card */}
           <View style={styles.infoCard}>
             <View style={styles.infoContent}>

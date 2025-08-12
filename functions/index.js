@@ -36,12 +36,25 @@ exports.getChatResponse = functions.https.onRequest(async (req, res) => {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { message, model = "gpt-3.5-turbo" } = req.body;
+    const { message, model = "gpt-3.5-turbo", weatherData } = req.body;
 
     // Validate input
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message is required and must be a string' });
     }
+
+    // Construct system prompt based on actual weather
+    const systemPrompt = weatherData
+      ? `You are Skylar, a friendly and knowledgeable weather assistant. Use the following weather data to give context-aware and specific suggestions:
+
+Temperature: ${weatherData.temp}°C
+Feels Like: ${weatherData.feels_like}°C
+Humidity: ${weatherData.humidity}%
+Weather: ${weatherData.description}
+Wind Speed: ${weatherData.wind_speed} km/h
+
+Only use this data to generate your advice. If it's hot, avoid suggesting jackets. If it's rainy or cold, suggest accordingly. Be direct and relevant.`
+      : `You are Skylar, a friendly and knowledgeable weather assistant. When answering weather-related questions, be specific and practical. If weather data is not provided, answer generally.`;
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
@@ -49,7 +62,7 @@ exports.getChatResponse = functions.https.onRequest(async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "You are Skylar, a friendly and knowledgeable weather assistant. When answering weather-related questions, be direct and specific, using the actual weather data provided. Only mention being a weather assistant if the question is not weather-related."
+          content: systemPrompt
         },
         {
           role: "user",
@@ -70,8 +83,7 @@ exports.getChatResponse = functions.https.onRequest(async (req, res) => {
 
   } catch (error) {
     console.error('OpenAI API Error:', error);
-    
-    // Handle different types of errors
+
     if (error.status === 401) {
       res.status(401).json({ error: 'Invalid OpenAI API key' });
     } else if (error.status === 429) {
@@ -83,6 +95,7 @@ exports.getChatResponse = functions.https.onRequest(async (req, res) => {
     }
   }
 });
+
 
 exports.saveDeviceData = functions.https.onRequest(async (req, res) => {
   // Enable CORS

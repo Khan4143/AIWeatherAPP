@@ -150,16 +150,16 @@ const WEATHER_ICONS: { [key: string]: WeatherIconMapping } = {
   '03n': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Scattered clouds (night)' },
   '04d': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Broken clouds (day)' },
   '04n': { materialIcon: 'weather-cloudy', featherIcon: 'cloud', description: 'Broken clouds (night)' },
-  '09d': { materialIcon: 'weather-pouring', featherIcon: 'cloud-rain', description: 'Shower rain (day)' },
-  '09n': { materialIcon: 'weather-pouring', featherIcon: 'cloud-rain', description: 'Shower rain (night)' },
+  '09d': { materialIcon: 'weather-partly-rainy', featherIcon: 'cloud-rain', description: 'Shower rain (day)' },
+  '09n': { materialIcon: 'weather-partly-rainy', featherIcon: 'cloud-rain', description: 'Shower rain (night)' },
   '10d': { materialIcon: 'weather-rainy', featherIcon: 'cloud-drizzle', description: 'Rain (day)' },
   '10n': { materialIcon: 'weather-rainy', featherIcon: 'cloud-drizzle', description: 'Rain (night)' },
-  '11d': { materialIcon: 'weather-lightning', featherIcon: 'cloud-lightning', description: 'Thunderstorm (day)' },
-  '11n': { materialIcon: 'weather-lightning', featherIcon: 'cloud-lightning', description: 'Thunderstorm (night)' },
+  '11d': { materialIcon: 'weather-lightning-rainy', featherIcon: 'cloud-lightning', description: 'Thunderstorm (day)' },
+  '11n': { materialIcon: 'weather-lightning-rainy', featherIcon: 'cloud-lightning', description: 'Thunderstorm (night)' },
   '13d': { materialIcon: 'weather-snowy', featherIcon: 'cloud-snow', description: 'Snow (day)' },
   '13n': { materialIcon: 'weather-snowy', featherIcon: 'cloud-snow', description: 'Snow (night)' },
   '50d': { materialIcon: 'weather-fog', featherIcon: 'wind', description: 'Mist (day)' },
-  '50n': { materialIcon: 'weather-fog', featherIcon: 'wind', description: 'Mist (night)' }
+  '50n': { materialIcon: 'weather-fog', featherIcon: 'wind', description: 'Mist (night)' },
 };
 
 // Helper function to determine weather icon based on conditions

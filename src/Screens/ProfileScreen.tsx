@@ -25,6 +25,8 @@ import { UserData } from '../Screens/UserInfo';
 import { DailyRoutineData } from '../Screens/DailyRoutine';
 import { PreferenceData } from '../Screens/PreferenceScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NativeAdComponent from '../components/NativeAdComponent';
+import { useAdMob } from '../contexts/AdContext';
 
 // Storage keys (should match UserDataManager's keys)
 const STORAGE_KEYS = {
@@ -96,6 +98,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   const [stylePreference, setStylePreference] = useState<string | null>(null);
   const [healthConcerns, setHealthConcerns] = useState<string[]>([]);
   const [preferredActivities, setPreferredActivities] = useState<string[]>([]);
+  const { initialized } = useAdMob();
 
   // Morning activities
   const allMorningActivities = [
@@ -373,7 +376,11 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         end={{x: 0, y: 1}}
       >
         <SafeAreaView style={{ flex: 1, paddingBottom: adjust(30) }}>
-          <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.container}
+            showsVerticalScrollIndicator={false}
+            stickyHeaderIndices={initialized ? [4] : []}
+          >
             {/* Header with settings */}
             <View style={styles.headerRow}>
               <View style={styles.profileImageContainer}>
@@ -426,6 +433,13 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                 <Text style={styles.infoValue}>{userLocation || 'Not set'}</Text>
               </View>
             </View>
+
+            {/* Native Ad between user info and activities */}
+            {initialized && (
+              <View style={styles.adContainer}>
+                <NativeAdComponent />
+              </View>
+            )}
 
             
             {/* Morning Activities */}
@@ -660,6 +674,27 @@ const styles = StyleSheet.create({
   },
   gradientBackground: {
     flex: 1,
+  },
+  adContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: adjust(8),
+    backgroundColor: '#fff',
+    zIndex: 5,
+    elevation: 3,
+  },
+  fixedAdContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: adjust(20),
+    paddingVertical: adjust(8),
+    backgroundColor: '#fff',
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   container: {
     flex: 1,
