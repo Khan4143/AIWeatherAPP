@@ -1,16 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- <item name="android:editTextBackground">@drawable/rn_edit_text_ material</item> -->
+        <!-- <item name="android:editTextBackground">@drawable/rn_edit_text_material</item> -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <!-- Let Android decide icons (auto per wallpaper/theme); remove forced light-content elsewhere -->
     </style>
 
-    <!-- Launch theme -->
-    <style name="LaunchTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:windowBackground">@drawable/launch_screen</item>
+    <style name="SplashTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 
-    <!-- Transparent theme for MainActivity -->
     <style name="Theme.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
@@ -18,5 +20,11 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowIsFloating">false</item>
         <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
+    <!-- RNBootSplash compatible theme -->
+    <style name="BootTheme" parent="SplashTheme">
+        <item name="android:windowBackground">@drawable/bootsplash</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 </resources>

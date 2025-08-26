@@ -3,4 +3,9 @@
     <color name="app_bg">#b3d4ff</color>
     <color name="primary_dark">#000000</color>
     <color name="status_bar_color">#000000</color>
-</resources> 
+
+    <!-- 👇 background color for splash screen -->
+    <color name="bootsplash_background">#1E8AFF</color>
+    <color name="bootsplash_grad_start">#1F8AFF</color>
+    <color name="bootsplash_grad_end">#38ADFF</color>
+</resources>

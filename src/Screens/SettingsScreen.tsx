@@ -14,6 +14,7 @@ import {
   Platform,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -1627,6 +1628,22 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     }
   };
 
+  // Safely open external links (e.g., Privacy Policy)
+  const openExternalLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.warn(`Cannot open URL: ${url}`);
+        Alert.alert('Unable to open link', 'Please try again later.');
+      }
+    } catch (err) {
+      console.error('Error opening URL:', err);
+      Alert.alert('Unable to open link', 'Please try again later.');
+    }
+  };
+
   return (
     <>
       <LinearGradient
@@ -1751,7 +1768,10 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
             </View>
             
             {/* Privacy Policy */}
-            <TouchableOpacity style={styles.settingRow}>
+            <TouchableOpacity 
+              style={styles.settingRow}
+              onPress={() => openExternalLink('https://fordnine.com/apps/weather/privacy-policy.html')}
+            >
               <View style={styles.settingIconContainer}>
                 <MaterialIcons name="privacy-tip" size={adjust(20)} color="#4361EE" />
               </View>
@@ -1762,14 +1782,17 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
               <Ionicons name="chevron-forward" size={adjust(18)} color="#999" />
             </TouchableOpacity>
             
-            {/* Terms of Service */}
-            <TouchableOpacity style={styles.settingRow}>
+            {/* Terms and Conditions */}
+            <TouchableOpacity 
+              style={styles.settingRow}
+              onPress={() => openExternalLink('https://fordnine.com/apps/weather/terms-of-use.html')}
+            >
               <View style={styles.settingIconContainer}>
                 <MaterialIcons name="description" size={adjust(20)} color="#4361EE" />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>Terms of Service</Text>
-                <Text style={styles.settingDescription}>Read our terms of service</Text>
+                <Text style={styles.settingLabel}>Terms and Conditions</Text>
+                <Text style={styles.settingDescription}>Read our terms and conditions</Text>
               </View>
               <Ionicons name="chevron-forward" size={adjust(18)} color="#999" />
             </TouchableOpacity>

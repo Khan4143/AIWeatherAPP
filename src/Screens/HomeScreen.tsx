@@ -578,7 +578,6 @@ const HomeScreen = () => {
   // Set up intervals to check for data freshness and user name
   useEffect(() => {
     if (UserData.location) {
-      console.log("HomeScreen - Fetching weather for location:", UserData.location);
       fetchForecastForCity(UserData.location);
     }
     // Set user name
@@ -588,30 +587,22 @@ const HomeScreen = () => {
   // Use useFocusEffect to detect when the HomeScreen is focused - but don't force refresh every time
   useFocusEffect(
     React.useCallback(() => {
-      console.log("HomeScreen - Screen focused");
-      // Only force refresh if we've been away for a while (more than 10 minutes)
       const now = Date.now();
       const tenMinutes = 10 * 60 * 1000;
       
       if (now - lastVisitTimeRef.current > tenMinutes && UserData.location) {
-        console.log("HomeScreen - More than 10 minutes since last focus, refreshing data");
         forceRefresh();
-      } else {
-        console.log("HomeScreen - Recent visit, no need to refresh");
       }
       
       lastVisitTimeRef.current = now;
       
       return () => {
-        // Cleanup function that runs when the screen is unfocused
-        console.log("HomeScreen - Screen unfocused");
       };
     }, [forceRefresh])
   );
 
   // Fetch concise Gemini responses for card summaries - with rate limiting
   useEffect(() => {
-    console.log('🔄 HomeScreen useEffect triggered - weatherSignature:', weatherSignature);
     
     const fetchOutfitCard = async () => {
       if (currentWeather) {
@@ -622,7 +613,6 @@ const HomeScreen = () => {
           (now - lastOutfitUpdate > twoHoursMs);
         
         if (shouldFetchOutfit) {
-          console.log('🔄 Fetching outfit card...');
         setOutfitCardLoading(true);
         try {
           const res = await generateResponse(
@@ -638,8 +628,6 @@ const HomeScreen = () => {
         } finally {
           setOutfitCardLoading(false);
           }
-        } else {
-          console.log("⏭️ Skipping outfit card update, using cached data");
         }
       }
     };
@@ -652,7 +640,6 @@ const HomeScreen = () => {
           (now - lastHealthUpdate > twoHoursMs);
         
         if (shouldFetchHealth) {
-          console.log('🔄 Fetching health card...');
         setHealthCardLoading(true);
         try {
           const res = await generateResponse(
@@ -668,8 +655,6 @@ const HomeScreen = () => {
         } finally {
           setHealthCardLoading(false);
           }
-        } else {
-          console.log("⏭️ Skipping health card update, using cached data");
         }
       }
     };
@@ -725,8 +710,6 @@ const HomeScreen = () => {
     setHealthGemini(null);
     fetchOutfit();
     fetchHealth();
-    } else {
-      console.log("⏭️ Skipping detailed tips update, using cached data");
     }
     return () => { cancelled = true; };
   }, [weatherSignature]);

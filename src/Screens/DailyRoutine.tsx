@@ -717,27 +717,15 @@ const DailyRoutine = ({ navigation }: DailyRoutineProps): ReactElement => {
         colors={['#b3d4ff', '#5c85e6']}
         style={styles.background}
       >
-        <View 
-          ref={contentRef} 
-          onLayout={handleContentLayout} 
-          style={[styles.measureContainer, { position: 'absolute', opacity: 0 }]}
+        <ScrollView 
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={styles.scrollContainer}
+          overScrollMode="never"
         >
           {renderContent()}
-        </View>
-        
-        {needsScrollView ? (
-          <ScrollView 
-            ref={scrollViewRef}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            contentContainerStyle={styles.scrollContainer}
-            overScrollMode="never"
-          >
-            {renderContent()}
-          </ScrollView>
-        ) : (
-          renderContent()
-        )}
+        </ScrollView>
 
       
       </LinearGradient>
@@ -813,11 +801,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: adjust(8),
     flexWrap: 'wrap',
-    gap: adjust(8),
     width: '100%',
   },
   optionButton: {
-    flex: 1,
+    flexBasis: '48%',
+    maxWidth: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -825,6 +813,7 @@ const styles = StyleSheet.create({
     borderRadius: adjust(8),
     paddingVertical: adjust(8),
     paddingHorizontal: adjust(10),
+    marginBottom: adjust(8),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,

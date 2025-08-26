@@ -1,18 +1,16 @@
 import axios from 'axios';
 import { WeatherData } from './weatherService';
 
-// const OPENAI_API_ENDPOINT = 'https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/getChatResponse';
-const OPENAI_API_ENDPOINT = 'https://2885490ccd27.ngrok-free.app/ai-weather-app-f69fc/us-central1/getChatResponse';
+// Use the stable Firebase Functions HTTPS URL instead of a temporary ngrok tunnel
+const OPENAI_API_ENDPOINT = 'https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/getChatResponse';
 
-// Development mode flag - set to true during development
-const IS_DEVELOPMENT = true;
+const IS_DEVELOPMENT = false;
 
 export interface OpenAIResponse {
   text: string;
   isWeatherRelated: boolean;
 }
 
-// Mock responses for development
 const getMockResponse = (userPrompt: string, weatherInfo: WeatherData): string => {
   const lowerPrompt = userPrompt.toLowerCase();
   
@@ -38,16 +36,10 @@ const getMockResponse = (userPrompt: string, weatherInfo: WeatherData): string =
     return `Today in ${weatherInfo.location}, the sun rises at ${sunrise} and sets at ${sunset}.`;
   }
   
-  // Default response for other weather-related queries
   return `Currently in ${weatherInfo.location}, it's ${weatherInfo.temperature}°C with ${weatherInfo.description}. The humidity is ${weatherInfo.humidity}% and wind speed is ${weatherInfo.windSpeed} km/h.`;
 };
 
-/**
- * Generate a response using the OpenAI API through Firebase Cloud Function
- * @param userPrompt - The user's question or prompt
- * @param weatherInfo - Current weather data to enhance responses
- * @returns - Response text and whether it's weather related
- */
+
 export const generateResponse = async (
   userPrompt: string,
   weatherInfo?: WeatherData
@@ -60,7 +52,6 @@ export const generateResponse = async (
       };
     }
 
-    // Use mock responses in development mode
     if (IS_DEVELOPMENT) {
       const isWeatherRelated = weatherKeywords.some(keyword => 
         userPrompt.toLowerCase().includes(keyword)
@@ -72,7 +63,6 @@ export const generateResponse = async (
       };
     }
 
-    // Prepare the context for OpenAI API
     const weatherContext = {
       location: weatherInfo.location,
       country: weatherInfo.country,
@@ -88,7 +78,6 @@ export const generateResponse = async (
       sunset: new Date(weatherInfo.sunset * 1000).toLocaleTimeString()
     };
 
-    // Construct the prompt for OpenAI
     const prompt = `You are a weather assistant named Skylar. Use the following weather data to answer the user's question in a helpful and conversational way.
     Current weather data: ${JSON.stringify(weatherContext)}
     User's question: ${userPrompt}
@@ -99,7 +88,7 @@ export const generateResponse = async (
     3. Keep responses natural and conversational.
     4. Be specific and use the actual weather data values in your response.`;
 
-    // Call OpenAI API through Firebase Cloud Function
+
     const response = await axios.post(
       OPENAI_API_ENDPOINT,
       {
@@ -119,7 +108,6 @@ export const generateResponse = async (
     };
 
   } catch (error) {
-    console.error('Error generating OpenAI response:', error);
     return {
       text: 'Sorry, I encountered an error while processing your request. Please try again later.',
       isWeatherRelated: false
@@ -127,7 +115,7 @@ export const generateResponse = async (
   }
 };
 
-// Weather keywords for checking if a query is weather-related
+
 const weatherKeywords = [
   'weather', 'rain', 'temperature', 'hot', 'cold', 'sunny', 'cloudy',
   'forecast', 'humidity', 'storm', 'wind', 'precipitation', 'climate',
@@ -136,31 +124,21 @@ const weatherKeywords = [
   'travel', 'walk', 'bike', 'drive', 'transport', 'visibility', 'air quality'
 ];
 
-/**
- * Check if a user's question is weather-related
- * @param query - The user's question
- * @returns - Boolean indicating if the question is weather-related
- */
+
 export const isWeatherQuestion = async (query: string): Promise<boolean> => {
-  // In development mode, just use keyword matching
   if (IS_DEVELOPMENT) {
     const lowerQuery = query.toLowerCase();
     return weatherKeywords.some(keyword => lowerQuery.includes(keyword));
   }
 
   try {
-    // Use keyword-based approach to determine if question is weather-related
     const lowerQuery = query.toLowerCase();
     
-    // If any weather keyword is found, return true
     for (const keyword of weatherKeywords) {
       if (lowerQuery.includes(keyword)) {
-        console.log(`Weather-related query detected: keyword "${keyword}" found in "${query}"`);
         return true;
       }
     }
-    
-    // For edge cases, call the OpenAI API for classification
     try {
       const response = await axios.post(
         OPENAI_API_ENDPOINT,
@@ -176,16 +154,13 @@ export const isWeatherQuestion = async (query: string): Promise<boolean> => {
       );
       
       const result = response.data.response.trim().toUpperCase();
-      console.log('Weather classification result:', result);
       
       return !result.includes('NO');
     } catch (error) {
-      console.error('API call error during weather classification:', error);
-      return true; // Default to allowing the query if API fails
+      return true;
     }
     
   } catch (error) {
-    console.error('Error validating weather question:', error);
-    return true; // Default to true on error to prevent blocking legitimate queries
+    return true;
   }
 }; 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import {
   NativeAd,
   NativeAdEventType,
@@ -9,8 +9,9 @@ import {
   NativeMediaView,
   TestIds,
 } from 'react-native-google-mobile-ads';
+import { getAdUnitId, isUsingRealAds, AD_CONFIG } from '../config/adConfig';
 
-const adUnitId = __DEV__ ? TestIds.NATIVE : 'ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy';
+const adUnitId = getAdUnitId(__DEV__);
 
 const NativeAdComponent = () => {
   const [nativeAd, setNativeAd] = useState<NativeAd>();
@@ -23,7 +24,6 @@ const NativeAdComponent = () => {
         setNativeAd(ad);
       })
       .catch((error: Error) => {
-        console.error('Failed to load native ad', error);
       });
   }, []);
 
@@ -33,7 +33,6 @@ const NativeAdComponent = () => {
     }
 
     const adListener = nativeAd.addAdEventListener(NativeAdEventType.IMPRESSION, () => {
-      console.log('Native ad impression');
     });
 
     return () => {
@@ -75,6 +74,8 @@ const NativeAdComponent = () => {
         </NativeAsset>
         <Text style={styles.adBadge}>AD</Text>
       </View>
+      
+
     </NativeAdView>
   );
 };
@@ -140,6 +141,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: 'bold',
   },
+
 });
 
 export default NativeAdComponent;

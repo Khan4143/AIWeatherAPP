@@ -1471,7 +1471,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingHorizontal: adjust(12),
+    paddingHorizontal: adjust(2),
     paddingBottom: adjust(25), // Add padding for tab bar
   },
   header: {
@@ -2084,7 +2084,7 @@ const styles = StyleSheet.create({
   checkButton: {
     backgroundColor: '#FFD859',
     borderRadius: adjust(15),
-    paddingVertical: adjust(14),
+    paddingVertical: adjust(10),
     alignItems: 'center',
     marginBottom: adjust(20),
   },

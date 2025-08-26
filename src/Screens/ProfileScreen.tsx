@@ -116,39 +116,23 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   // Function to refresh data - extract this from useFocusEffect for reuse
   const refreshData = async () => {
     try {
-      console.log("===== PROFILE SCREEN: Starting data refresh from AsyncStorage =====");
-      
-      // First, directly check what's in AsyncStorage for debugging
       const profileJson = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      if (profileJson) {
-        console.log("PROFILE SCREEN - Raw profile data in AsyncStorage:", profileJson);
-      } else {
-        console.warn("PROFILE SCREEN - No profile data found in AsyncStorage!");
-      }
       
-      // Force a complete reload from AsyncStorage
       await UserDataManager.loadAllData();
       
-      // Get the freshly loaded data
       const userData = UserDataManager.getAllUserData();
-      console.log("PROFILE SCREEN - Loaded user data:", JSON.stringify(userData, null, 2));
       
-      // Update all state variables with fresh data
       if (userData.profile) {
         const profile = userData.profile as UserDataType;
-        console.log("PROFILE SCREEN - Setting profile data:", JSON.stringify(profile, null, 2));
         setUserOccupation(profile.occupation || '');
         setUserName(profile.name || profile.occupation || '');
         setUserLocation(profile.location || '');
         setUserAge(profile.age || '');
         setUserGender(profile.gender || '');
-      } else {
-        console.log("PROFILE SCREEN - No profile data found!");
       }
       
       if (userData.preferences) {
         const preferences = userData.preferences as PreferenceDataType;
-        console.log("PROFILE SCREEN - Setting preferences data");
         setCommuteAlerts(preferences.notifications?.commute || false);
         setClothingSuggestions(preferences.notifications?.clothing || false);
         setHealthTips(preferences.notifications?.health || false);
@@ -177,7 +161,6 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
       
       if (userData.dailyRoutine) {
         const dailyRoutine = userData.dailyRoutine as DailyRoutineType;
-        console.log("PROFILE SCREEN - Setting daily routine data");
         
         if (dailyRoutine.commuteMethod) {
           setUserCommuteMethod(dailyRoutine.commuteMethod);
@@ -210,9 +193,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         }
       }
       
-      console.log("===== PROFILE SCREEN: Data refresh completed =====");
     } catch (error) {
-      console.error("PROFILE SCREEN - Error refreshing data:", error);
     }
   };
 
@@ -234,7 +215,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         name: userName
       };
       
-      console.log("PROFILE SCREEN - Saving profile:", JSON.stringify(updatedProfile, null, 2));
+
       
       // 2. Update preferences data
       const updatedPreferences = {
@@ -275,15 +256,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
       // Then save to AsyncStorage
       await UserDataManager.saveAllData();
       
-      console.log("PROFILE SCREEN - All changes saved successfully");
-      
-      // Verify data was saved to AsyncStorage
-      const profileJson = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      if (profileJson) {
-        console.log("PROFILE SCREEN - Profile saved to AsyncStorage:", profileJson);
-      } else {
-        console.warn("PROFILE SCREEN - No profile data found in AsyncStorage after save!");
-      }
+
       
       // Reload data to ensure UI is in sync
       await refreshData();
@@ -295,7 +268,6 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         [{ text: "OK" }]
       );
     } catch (error) {
-      console.error("PROFILE SCREEN - Error saving changes:", error);
       
       // Show error message
       Alert.alert(
@@ -308,28 +280,20 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
   // Load user data when the component mounts
   useEffect(() => {
-    console.log("PROFILE SCREEN - Initial mount, loading data");
     refreshData();
   }, []);
 
   // Reload data when screen is focused
   useFocusEffect(
     React.useCallback(() => {
-      console.log("===== PROFILE SCREEN: Screen focused - reloading user data =====");
-      
-      // Force a reload when screen comes into focus
       refreshData();
       
       return () => {
-        console.log("PROFILE SCREEN - Screen lost focus");
       };
-    }, []) // Empty dependency array means this runs on every focus
+    }, [])
   );
 
-  // Function to navigate to onboarding screens
-  const navigateToOnboarding = () => {
-    navigation.navigate('Welcome', { bypassOnboardingCheck: true });
-  };
+
 
   // Function to get the style name for display
   const getStyleDisplayName = (styleId: string | null): string => {
@@ -643,19 +607,6 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
               </View>
             </View>
 
-            {/* Reset Preferences */}
-            <TouchableOpacity style={styles.resetContainer}>
-              <Text style={styles.resetText}>Reset Preferences</Text>
-            </TouchableOpacity>
-
-            {/* Developer button for onboarding access */}
-            <TouchableOpacity 
-              style={styles.devButton} 
-              onPress={navigateToOnboarding}
-            >
-              <Text style={styles.devButtonText}>Go to Onboarding</Text>
-            </TouchableOpacity>
-
             {/* Home indicator */}
             <View style={styles.homeIndicator}>
               <View style={styles.homeIndicatorBar} />
@@ -851,59 +802,7 @@ const styles = StyleSheet.create({
     color: '#808080',
     marginRight: adjust(4),
   },
-  // notificationBox: {
-  //   backgroundColor: 'rgba(67, 97, 238, 0.08)',
-  //   borderRadius: adjust(10),
-  //   padding: adjust(12),
-  //   marginBottom: adjust(12),
-  // },
-  // notificationOptions: {
-  //   marginVertical: adjust(6),
-  // },
-  // notificationRow: {
-  //   flexDirection: 'row',
-  //   justifyContent: 'space-between',
-  //   alignItems: 'center',
-  //   paddingVertical: adjust(8),
-  //   borderBottomWidth: 1,
-  //   borderBottomColor: '#f0f0f0',
-  // },
-  // notificationLabel: {
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  // },
-  // notificationText: {
-  //   fontSize: adjust(13),
-  //   color: '#333',
-  //   marginLeft: adjust(6),
-  // },
-  // notificationCaption: {
-  //   fontSize: adjust(12),
-  //   color: '#666',
-  //   marginTop: adjust(6),
-  //   marginBottom: adjust(12),
-  // },
-  // customizeButton: {
-  //   backgroundColor: '#4361EE',
-  //   borderRadius: adjust(10),
-  //   paddingVertical: adjust(12),
-  //   alignItems: 'center',
-  //   marginBottom: adjust(16),
-  // },
-  // customizeButtonText: {
-  //   color: '#fff',
-  //   fontSize: adjust(13),
-  //   fontWeight: '600',
-  // },
-  resetContainer: {
-    alignItems: 'center',
-    marginBottom: adjust(24),
-  },
-  resetText: {
-    color: '#FF3B30',
-    fontSize: adjust(14),
-    fontWeight: '500',
-  },
+  
   homeIndicator: {
     alignItems: 'center',
     paddingBottom: adjust(8),

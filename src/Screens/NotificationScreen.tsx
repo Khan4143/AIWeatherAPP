@@ -39,8 +39,8 @@ const NotificationScreen = ({ navigation }: { navigation: any }) => {
 
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       <LinearGradient
         colors={['#b3d4ff', '#5c85e6']}
         style={styles.background}
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     minHeight: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   header: {
     flexDirection: 'row',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 'auto',
     paddingHorizontal: adjust(15),
-    marginBottom: adjust(25),
+    marginBottom: adjust(12),
   },
   button: {
     width: '90%',

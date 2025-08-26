@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, StatusBar, Platform, ViewStyle } from 'react-native';
+import { StyleSheet, Platform, ViewStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -37,21 +37,18 @@ const defaultTabBarStyle: ViewStyle = {
   position: 'absolute',
   left: adjust(16),
   right: adjust(16),
-  // bottom: adjust(10), // Optional spacing from bottom
+
 };
 
 
 const TabNavigator = () => {
   useEffect(() => {
-    console.log('✅ TabNavigator mounted');
     return () => {
-      console.log('❌ TabNavigator unmounted');
     };
   }, []);
 
   return (
     <>
-      <StatusBar backgroundColor="#000000" barStyle="light-content" />
       <Tab.Navigator
         screenOptions={{
           headerShown: false,

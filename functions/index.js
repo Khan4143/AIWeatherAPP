@@ -111,7 +111,7 @@ exports.saveDeviceData = functions.https.onRequest(async (req, res) => {
     return res.status(405).send('Method Not Allowed');
   }
 
-  const { deviceId, token, timezone, location, city } = req.body;
+  const { deviceId, token, timezone, timezoneOffsetMinutes, location, city } = req.body;
 
   if (!deviceId) {
     return res.status(400).send('Missing deviceId');
@@ -123,10 +123,26 @@ exports.saveDeviceData = functions.https.onRequest(async (req, res) => {
 
   if (token) updateData.token = token;
   if (timezone) updateData.timezone = timezone;
+  if (typeof timezoneOffsetMinutes === 'number') updateData.timezoneOffsetMinutes = timezoneOffsetMinutes;
   if (location) updateData.location = location;
   if (city) updateData.city = city;
 
   try {
+    // Optionally enrich with current weather immediately when location is provided
+    if (location && location.lat && location.lng && OPENWEATHER_API_KEY) {
+      try {
+        const wx = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lng}&units=metric&appid=${OPENWEATHER_API_KEY}`
+        );
+        updateData.weather = {
+          temp: wx.data.main?.temp,
+          condition: wx.data.weather?.[0]?.main,
+          windSpeed: wx.data.wind?.speed,
+        };
+      } catch (werr) {
+        console.error('⚠️ Weather fetch in saveDeviceData failed:', werr.message);
+      }
+    }
     await admin.firestore().collection('deviceTokens').doc(deviceId).set(updateData, { merge: true });
     return res.status(200).send('Device data saved');
   } catch (error) {

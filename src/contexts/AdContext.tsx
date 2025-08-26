@@ -1,4 +1,3 @@
-// src/context/AdMobProvider.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import mobileAds from 'react-native-google-mobile-ads';
 
@@ -17,7 +16,6 @@ export const AdMobProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mobileAds()
       .initialize()
       .then(() => {
-        console.log('✅ AdMob initialized globally');
         setInitialized(true);
       });
   }, []);

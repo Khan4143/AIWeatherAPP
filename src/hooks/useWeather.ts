@@ -22,11 +22,7 @@ interface UseWeatherProps {
   autoFetch?: boolean;
 }
 
-/**
- * Custom hook for fetching and managing weather data
- * @param props - Configuration options
- * @returns Weather state and functions
- */
+
 const useWeather = (props?: UseWeatherProps) => {
   const { 
     city, 
@@ -46,23 +42,17 @@ const useWeather = (props?: UseWeatherProps) => {
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 2;
 
-  // Add effect to handle unit changes
   useEffect(() => {
-    // If we have current weather data, fetch it again with new units
     if (state.currentWeather && !state.isLoading) {
-      console.log("useWeather: Units changed, refreshing data with new units:", units);
       if (city) {
         fetchForecast(city);
       } else if (lat !== undefined && lon !== undefined) {
         fetchByCoordinates(lat, lon);
       }
     }
-  }, [units]); // Only depend on units change
+  }, [units]);
 
-  /**
-   * Fetch current weather data for a city
-   * @param cityName - City name with country code e.g. "London, GB"
-   */
+
   const fetchWeather = useCallback(async (cityName: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
@@ -75,11 +65,8 @@ const useWeather = (props?: UseWeatherProps) => {
       }));
       return weatherData;
     } catch (error: any) {
-      console.error(`Weather fetch error (attempt ${retryCount + 1}):`, error.message);
-      
       if (retryCount < MAX_RETRIES) {
         setRetryCount(prev => prev + 1);
-        // Will retry automatically via useEffect
       } else {
         setState(prev => ({ 
           ...prev, 

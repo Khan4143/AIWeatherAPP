@@ -17,7 +17,7 @@ import SettingsScreen from '../Screens/SettingsScreen';
 import TabNavigator, { TabParamList } from './TabNavigator';
 import { navigationRef } from './navigationRef';
 
-// Update RootStackParamList to include bypassOnboardingCheck parameter
+
 export type RootStackParamList = {
   Welcome: { bypassOnboardingCheck?: boolean } | undefined;
   UserInfo: undefined;
@@ -77,12 +77,10 @@ const linking = {
 const Navigations = () => {
   useEffect(() => {
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      console.log('Deep link URL:', url);
     });
 
     Linking.getInitialURL().then((url) => {
       if (url) {
-        console.log('Initial URL:', url);
       }
     });
 
@@ -97,10 +95,9 @@ const Navigations = () => {
         initialRouteName="Welcome" 
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#b3d4ff' }, // Match WelcomeScreen background
-          animation: 'fade' // Smooth fade transition
+          contentStyle: { backgroundColor: '#b3d4ff' },
+          animation: 'fade'
         }}>
-        {/* Onboarding Screens */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="UserInfo" component={UserInfo} />
         <Stack.Screen name="DailyRoutine" component={DailyRoutine} />
@@ -109,7 +106,6 @@ const Navigations = () => {
         <Stack.Screen name="NotificationScreen" component={NotificationScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Forecast" component={ForecastScreen} />
-        {/* Main App (Tab Navigator) */}
         <Stack.Screen name="MainApp" component={TabNavigator} />
       </Stack.Navigator>
     </NavigationContainer>

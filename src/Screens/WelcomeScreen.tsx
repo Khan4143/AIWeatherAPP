@@ -67,7 +67,7 @@ const WelcomeScreen = ({navigation, route}: {navigation: any; route: any}) => {
       <StatusBar backgroundColor="#000000" barStyle="light-content" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={{flexGrow: 1}}>
+        contentContainerStyle={{flexGrow: 1}}>
         <LinearGradient
           colors={['#b3d4ff', '#5c85e6']}
           style={styles.background}>
@@ -204,20 +204,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#b3d4ff',
   },
   background: {
-    height: SCREEN_HEIGHT,
+    flex: 1,
     width: SCREEN_WIDTH,
     paddingHorizontal: adjust(24),
     paddingTop:
-      Platform.OS === 'ios'
-        ? adjust(5)
-        : (StatusBar.currentHeight || 0) + adjust(5),
-    paddingBottom: adjust(20),
+      Platform.OS === 'ios' ? 12 : (StatusBar.currentHeight || 0) + 12,
+    paddingBottom: 16,
   },
   contentContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: adjust(20),
+    paddingTop: 12,
   },
   bubble: {
     position: 'absolute',
@@ -241,7 +239,7 @@ const styles = StyleSheet.create({
   },
   welcomeTextContainer: {
     alignItems: 'center',
-    marginTop: adjust(20),
+    marginTop: 12,
   },
   welcomeTitle: {
     fontSize: adjust(22),
@@ -258,7 +256,7 @@ const styles = StyleSheet.create({
   },
   iconsGrid: {
     width: '100%',
-    marginTop: adjust(25),
+    marginTop: 16,
     opacity: 0.4,
   },
   iconRow: {
@@ -277,7 +275,7 @@ const styles = StyleSheet.create({
   bottomContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: adjust(25),
+    marginTop: 16,
   },
   button: {
     width: '90%',

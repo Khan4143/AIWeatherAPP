@@ -1,13 +1,13 @@
 buildscript {
     ext {
-        buildToolsVersion = "35.0.0"
+        buildToolsVersion = "36.0.0"
         minSdkVersion = 24
-        compileSdkVersion = 35
-        targetSdkVersion = 35
+        compileSdkVersion = 36
+        targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.0.21"
-        
-        // Update AndroidX versions to match React Native
+        kotlinVersion = "1.9.10"
+
+        // AndroidX versions
         androidXCore = "1.10.1"
         androidXAnnotation = "1.7.1"
         androidXAppCompat = "1.6.1"
@@ -17,23 +17,17 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle")
-        classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
-        classpath 'com.google.gms:google-services:4.4.2'
+        classpath("com.android.tools.build:gradle:8.7.2") // latest stable
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://jitpack.io" }
-        maven {
-            url "$rootDir/../node_modules/react-native/android"
-        }
-    }
+plugins {
+    id("com.facebook.react.rootproject")
+}
 
+subprojects {
     configurations.all {
         resolutionStrategy {
             force "androidx.core:core:${androidXCore}"
@@ -46,5 +40,3 @@ allprojects {
         }
     }
 }
-
-apply plugin: "com.facebook.react.rootproject"

@@ -6,9 +6,11 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Keyboard,
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -22,6 +24,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigations/TabNavigator';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 import NativeAdComponent from '../components/NativeAdComponent';
 import { useAdMob } from '../contexts/AdContext';
@@ -48,6 +51,17 @@ const CommuteScreen = () => {
   const { currentWeather } = useWeatherContext();
   const userLocation = UserData.location || 'your location';
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList, 'Commute'>>();
+  const tabBarHeight = useBottomTabBarHeight();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const { initialized } = useAdMob();
 
   const [messages, setMessages] = useState<Message[]>([
@@ -66,32 +80,7 @@ const CommuteScreen = () => {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  useEffect(() => {
-    const showKeyboard = () => {
-      setIsKeyboardVisible(true);
-      scrollToBottom();
-      navigation.getParent()?.setOptions({
-        tabBarStyle: { display: 'none' }
-      });
-    };
-    const hideKeyboard = () => {
-      setIsKeyboardVisible(false);
-      navigation.getParent()?.setOptions({
-        tabBarStyle: undefined
-      });
-    };
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', showKeyboard);
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', hideKeyboard);
-    return () => {
-      keyboardDidShowListener.remove();
-      keyboardDidHideListener.remove();
-      navigation.getParent()?.setOptions({
-        tabBarStyle: undefined
-      });
-    };
-  }, [navigation]);
+  // The tab bar automatically hides on keyboard open via tabBarHideOnKeyboard.
 
   const scrollToBottom = () => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -204,78 +193,103 @@ const CommuteScreen = () => {
           </View>
         )}
 
-        <ScrollView ref={scrollViewRef} style={styles.chatContainer} contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {messages.map((message) => (
-            <View
-              key={`message-${message.id}`}
-              style={[
-                styles.messageBubble,
-                message.sender === 'user' ? styles.userMessage : styles.skylarMessage,
-              ]}
-            >
-              {message.sender === 'skylar' && (
-                <View style={styles.messageBubbleAvatar}>
-                  <MaterialCommunityIcons name="robot" size={adjust(16)} color="#fff" />
-                </View>
-              )}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={'padding'}
+          keyboardVerticalOffset={0}
+        >
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.chatContainer}
+            contentContainerStyle={[
+              styles.chatContent,
+              { paddingBottom: isKeyboardOpen ? adjust(80) : tabBarHeight + adjust(120) },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.map((message) => (
               <View
+                key={`message-${message.id}`}
                 style={[
-                  styles.messageContent,
-                  message.sender === 'user' ? styles.userMessageContent : styles.skylarMessageContent,
+                  styles.messageBubble,
+                  message.sender === 'user' ? styles.userMessage : styles.skylarMessage,
                 ]}
               >
-                {renderMessageContent(message)}
-              </View>
-              {message.sender === 'user' && (
-                <View style={styles.userMessageBubbleAvatar}>
-                  <FontAwesome name="user" size={adjust(14)} color="#fff" />
+                {message.sender === 'skylar' && (
+                  <View style={styles.messageBubbleAvatar}>
+                    <MaterialCommunityIcons name="robot" size={adjust(16)} color="#fff" />
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.messageContent,
+                    message.sender === 'user' ? styles.userMessageContent : styles.skylarMessageContent,
+                  ]}
+                >
+                  {renderMessageContent(message)}
                 </View>
-              )}
-            </View>
-          ))}
-        </ScrollView>
+                {message.sender === 'user' && (
+                  <View style={styles.userMessageBubbleAvatar}>
+                    <FontAwesome name="user" size={adjust(14)} color="#fff" />
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.questionsOuterContainer, isKeyboardVisible ? styles.questionsContainerKeyboard : null]} contentContainerStyle={styles.questionsScrollContent}>
-          {predefinedQuestions.map((question, index) => (
-            <TouchableOpacity
-              key={`question-${question.id}`}
-              style={[
-                styles.questionButton,
-                index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
-              ]}
-              onPress={() => handleQuestionSelect(question.text)}
+          <View style={[
+            styles.footerContainer,
+            { paddingBottom: isKeyboardOpen ? adjust(6) : tabBarHeight + adjust(6) },
+          ]}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.questionsRow}
+              contentContainerStyle={styles.questionsScrollContent}
             >
-              <Text
-                style={[
-                  styles.questionText,
-                  index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
-                ]}
-                numberOfLines={1}
-              >
-                {question.text}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {predefinedQuestions.map((question, index) => (
+                <TouchableOpacity
+                  key={`question-${question.id}`}
+                  style={[
+                    styles.questionButton,
+                    index % 2 === 0 ? styles.questionButtonYellow : styles.questionButtonBlue,
+                  ]}
+                  onPress={() => handleQuestionSelect(question.text)}
+                >
+                  <Text
+                    style={[
+                      styles.questionText,
+                      index % 2 === 0 ? styles.questionTextYellow : styles.questionTextBlue,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {question.text}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-        <View style={[styles.inputContainer, isKeyboardVisible ? styles.inputContainerKeyboard : null]}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Ask me about today's plans..."
-              placeholderTextColor="#999"
-              value={inputText}
-              onChangeText={setInputText}
-              multiline={false}
-              returnKeyType="send"
-              onSubmitEditing={handleSendMessage}
-            />
-            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage} disabled={isLoading}>
-              <AntDesign name="arrowup" size={adjust(18)} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.inputContainerInline}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  ref={inputRef}
+                  style={styles.input}
+                  placeholder="Ask me about today's plans..."
+                  placeholderTextColor="#999"
+                  value={inputText}
+                  onChangeText={setInputText}
+                  multiline={false}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendMessage}
+                />
+                <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage} disabled={isLoading}>
+                  <AntDesign name="arrowup" size={adjust(18)} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
 
         {toastVisible && (
           <Animated.View style={[styles.toast, { opacity: fadeAnim }]}>
@@ -341,13 +355,11 @@ const styles = StyleSheet.create({
   },
   chatContainer: {
     flex: 1,
-    marginBottom: adjust(90), // Add margin to accommodate questions and input
   },
   chatContent: {
     flexGrow: 1,
     paddingHorizontal: adjust(12),
     paddingTop: adjust(12),
-    paddingBottom: adjust(80), // Add padding for tab bar
   },
   messageBubble: {
     marginBottom: adjust(12),
@@ -413,19 +425,20 @@ const styles = StyleSheet.create({
   skylarMessageText: {
     color: '#333',
   },
-  inputContainer: {
-    position: 'absolute',
-    bottom: adjust(55), // Default position when tab bar is visible
-    left: 0,
-    right: 0,
+  footerContainer: {
+    paddingTop: adjust(6),
+    paddingBottom: adjust(6),
+    backgroundColor: 'transparent',
+  },
+  flex: {
+    flex: 1,
+  },
+  questionsRow: {
+    maxHeight: adjust(44),
+  },
+  inputContainerInline: {
     paddingVertical: adjust(6),
     paddingHorizontal: adjust(12),
-    height: adjust(40),
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  inputContainerKeyboard: {
-    bottom: 0, // When keyboard is visible, stick to bottom
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -452,15 +465,6 @@ const styles = StyleSheet.create({
     marginRight: adjust(3), // Reduced from 4
   },
   questionsOuterContainer: {
-    position: 'absolute',
-    bottom: adjust(100), // Default position when tab bar is visible
-    left: 0,
-    right: 0,
-    maxHeight: adjust(44),
-    zIndex: 1,
-  },
-  questionsContainerKeyboard: {
-    bottom: adjust(45), // When keyboard is visible, position above input
   },
   questionsScrollContent: {
     paddingHorizontal: adjust(12), // Reduced from 14
