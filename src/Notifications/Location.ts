@@ -1,4 +1,5 @@
 import DeviceInfo from 'react-native-device-info';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
 
 export const useDeviceMeta = () => {
     const saveDeviceData = async ({
@@ -10,6 +11,10 @@ export const useDeviceMeta = () => {
       longitude: number;
       cityDisplay: string;
     }) => {
+      if (DEMO_MODE) {
+        return {success: true, data: {demo: true}};
+      }
+
       try {
         const deviceId = await DeviceInfo.getUniqueId();
         const timezone = (() => {
@@ -39,7 +44,7 @@ export const useDeviceMeta = () => {
   
 
         
-        const response = await fetch('https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/saveDeviceData', {
+        const response = await fetch(`${API_CONFIG.firebaseFunctionsBaseUrl}/saveDeviceData`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -68,4 +73,3 @@ export const useDeviceMeta = () => {
   
     return { saveDeviceData };
   };
-  

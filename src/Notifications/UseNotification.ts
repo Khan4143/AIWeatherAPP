@@ -4,8 +4,13 @@ import notifee, { AndroidImportance } from '@notifee/react-native';
 import { useEffect } from 'react';
 import DeviceInfo from 'react-native-device-info';
 import { navigationRef } from '../navigations/navigationRef';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
 
 export const requestNotificationPermission = async () => {
+  if (DEMO_MODE) {
+    return true;
+  }
+
   try {
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       const granted = await PermissionsAndroid.request(
@@ -32,7 +37,7 @@ export const requestNotificationPermission = async () => {
     const deviceId = await DeviceInfo.getUniqueId();
 
     try {
-      const response = await fetch('https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/saveDeviceToken', {
+      const response = await fetch(`${API_CONFIG.firebaseFunctionsBaseUrl}/saveDeviceToken`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ deviceId, token })
@@ -55,6 +60,10 @@ export const requestNotificationPermission = async () => {
 
 export const useNotification = () => {
   useEffect(() => {
+    if (DEMO_MODE) {
+      return;
+    }
+
     const unsubscribe = messaging().onMessage(async remoteMessage => {
 
       await notifee.createChannel({
@@ -97,6 +106,10 @@ const navigateToHome = () => {
 
 export const useNotificationTapHandler = () => {
   useEffect(() => {
+    if (DEMO_MODE) {
+      return;
+    }
+
     const backgroundSubscription = messaging().onNotificationOpenedApp(remoteMessage => {
       navigateToHome();
     });
@@ -116,10 +129,14 @@ export const useNotificationTapHandler = () => {
 };
 
 export const disableNotifications = async () => {
+  if (DEMO_MODE) {
+    return true;
+  }
+
   try {
     const deviceId = await DeviceInfo.getUniqueId();
     
-    const response = await fetch('https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/deleteDeviceToken', {
+    const response = await fetch(`${API_CONFIG.firebaseFunctionsBaseUrl}/deleteDeviceToken`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { WeatherData, ForecastData } from '../services/weatherService';
 import useWeather from '../hooks/useWeather';
 import { UserData } from '../Screens/UserInfo';
+import {DEMO_MODE} from '../config/appConfig';
 
 interface WeatherContextType {
   currentWeather: WeatherData | null;
@@ -24,7 +25,9 @@ interface WeatherProviderProps {
 
 export const WeatherProvider: React.FC<WeatherProviderProps> = ({ children }) => {
   const [preferredUnits, setPreferredUnits] = useState<'metric' | 'imperial'>('metric');
-  const [userLocation, setUserLocation] = useState<string | undefined>(undefined);
+  const [userLocation, setUserLocation] = useState<string | undefined>(
+    DEMO_MODE ? 'Islamabad, PK' : undefined,
+  );
   const [lastFetchedLocation, setLastFetchedLocation] = useState<string | undefined>(undefined);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -167,4 +170,4 @@ export const useWeatherContext = () => {
   return context;
 };
 
-export default WeatherContext; 
+export default WeatherContext;

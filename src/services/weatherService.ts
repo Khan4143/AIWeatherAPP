@@ -1,7 +1,10 @@
 // OpenWeather API Service
 // This file contains functions for fetching weather data from the OpenWeather API
 
-const API_KEY = '027ed4b6eb25a572ae0e91302e6d93a2';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
+import {createDemoForecast, createDemoWeather, searchDemoCities} from '../data/demoWeather';
+
+const API_KEY = API_CONFIG.openWeatherKey;
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
 // Update WeatherData interface to include UV index and rain probability
@@ -111,6 +114,10 @@ export interface ForecastData {
  * @returns Promise with boolean indicating if the city is valid
  */
 export const validateCity = async (city: string): Promise<boolean> => {
+  if (DEMO_MODE) {
+    return searchDemoCities(city).length > 0 || city.trim().length >= 2;
+  }
+
   try {
     // Split city name from country code - expected format: "City, CountryCode"
     const [cityName, countryCode] = city.split(',').map(part => part.trim());
@@ -279,6 +286,10 @@ export const fetchCurrentWeather = async (
   city: string,
   units: 'metric' | 'imperial' | 'standard' = 'metric'
 ): Promise<WeatherData> => {
+  if (DEMO_MODE) {
+    return createDemoWeather(city, units);
+  }
+
   try {
     // Split city name from country code - expected format: "City, CountryCode"
     const [cityName, countryCode] = city.split(',').map(part => part.trim());
@@ -362,6 +373,10 @@ export const fetchWeatherForecast = async (
   city: string,
   units: 'metric' | 'imperial' | 'standard' = 'metric'
 ): Promise<ForecastData> => {
+  if (DEMO_MODE) {
+    return createDemoForecast(city, units);
+  }
+
   try {
     // First get the current weather
     const currentWeather = await fetchCurrentWeather(city, units);
@@ -580,6 +595,10 @@ export const fetchWeatherByCoordinates = async (
   lon: number,
   units: 'metric' | 'imperial' | 'standard' = 'metric'
 ): Promise<WeatherData> => {
+  if (DEMO_MODE) {
+    return createDemoWeather('Islamabad, PK', units);
+  }
+
   try {
     const response = await fetch(
       `${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=${units}`
@@ -646,6 +665,10 @@ export const fetchWeatherByCoordinates = async (
 
 // Add new function to fetch detailed weather data including UV index
 async function fetchDetailedWeather(lat: number, lon: number): Promise<any> {
+  if (DEMO_MODE) {
+    return null;
+  }
+
   try {
     const response = await fetch(
       `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,alerts&appid=${API_KEY}`
@@ -688,4 +711,4 @@ export const validateRainProbability = (pop: number, weatherMain?: string): numb
   }
   
   return validatedPop;
-}; 
+};

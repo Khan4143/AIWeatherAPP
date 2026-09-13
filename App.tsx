@@ -29,6 +29,7 @@ import BootSplash from 'react-native-bootsplash';
 
 // Google Mobile Ads + Consent
 import mobileAds, { AdsConsent } from 'react-native-google-mobile-ads';
+import {DEMO_MODE} from './src/config/appConfig';
 
 const restoreWeatherData = async () => {
   try {
@@ -79,6 +80,12 @@ const App = () => {
     const initializeApp = async () => {
       try {
         console.log('🚀 App initializing...');
+        if (DEMO_MODE) {
+          Orientation.lockToPortrait();
+          setAppReady(true);
+          return;
+        }
+
         await requestNotificationPermission();
 
         notifee.onBackgroundEvent(async ({type, detail}) => {

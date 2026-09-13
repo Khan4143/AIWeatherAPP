@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import mobileAds from 'react-native-google-mobile-ads';
+import {DEMO_MODE} from '../config/appConfig';
 
 type AdMobContextType = {
   initialized: boolean;
@@ -13,6 +14,11 @@ export const AdMobProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
+    if (DEMO_MODE) {
+      setInitialized(true);
+      return;
+    }
+
     mobileAds()
       .initialize()
       .then(() => {

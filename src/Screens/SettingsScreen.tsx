@@ -35,6 +35,8 @@ import { useWeatherContext } from '../contexts/WeatherContext';
 import { requestNotificationPermission, disableNotifications } from '../Notifications/UseNotification';
 import messaging from '@react-native-firebase/messaging';
 import DeviceInfo from 'react-native-device-info';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
+import {searchDemoCities} from '../data/demoWeather';
 
 // Storage keys (should match UserDataManager's keys)
 const STORAGE_KEYS = {
@@ -44,7 +46,7 @@ const STORAGE_KEYS = {
 };
 
 // Google Places API Key
-const GOOGLE_PLACES_API_KEY = 'AIzaSyAJcSmb8jAEU5qVlzR3sTRcraWxb38B31w';
+const GOOGLE_PLACES_API_KEY = API_CONFIG.googlePlacesKey;
 
 // Define interfaces for user data
 interface UserDataType {
@@ -105,7 +107,7 @@ const POPULAR_CITIES = [
   'Singapore, SG',
 ];
 
-const API_KEY = '87b449b894656bb5d85c61981ace7d25';
+const API_KEY = API_CONFIG.openWeatherKey;
 
 // Add type definition for city objects
 interface CityObject {
@@ -756,6 +758,14 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       return;
     }
 
+    if (DEMO_MODE) {
+      setCitySuggestions(searchDemoCities(query).map((city, index) => ({
+        key: `demo-${index}`,
+        display: city,
+      })));
+      return;
+    }
+
     // First check our static list for partial matches
     const staticMatches: CityObject[] = POPULAR_CITIES.filter(city => 
       city.toLowerCase().includes(query.toLowerCase())
@@ -882,6 +892,15 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       return;
     }
     
+    if (DEMO_MODE) {
+      setPlacesResults(searchDemoCities(query).map((city, index) => ({
+        place_id: `demo-${index}`,
+        description: city,
+        structured_formatting: {main_text: city.split(',')[0], secondary_text: city.split(',')[1]?.trim()},
+      })));
+      return;
+    }
+
     try {
       setIsPlacesLoading(true);
       
@@ -954,6 +973,12 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
   
   // Handle place selection
   const handlePlaceSelected = async (placeId: string, description: string) => {
+    if (DEMO_MODE) {
+      setLocation(description);
+      setShowCitySuggestions(false);
+      return;
+    }
+
     try {
       // Get detailed place information
       const response = await fetch(
@@ -2478,4 +2503,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SettingsScreen; 
+export default SettingsScreen;

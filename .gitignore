@@ -33,6 +33,7 @@ local.properties
 .cxx/
 *.keystore
 !debug.keystore
+release-keystore.jks
 .kotlin/
 
 # node.js
@@ -81,6 +82,8 @@ functions/.env
 .env.local
 .env.development
 .env.production
+.env.*
+!.env.example
 
 # OS specific files
 .DS_Store

@@ -27,6 +27,8 @@ import Geolocation from 'react-native-geolocation-service';
 import { validateCity } from '../services/weatherService';
 import debounce from 'lodash/debounce';
 import { useDeviceMeta } from '../Notifications/Location';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
+import {searchDemoCities} from '../data/demoWeather';
 
 const STANDARD_SPACING = adjust(15);
 
@@ -65,7 +67,7 @@ export const UserData = {
 
 
 
-const API_KEY = '87b449b894656bb5d85c61981ace7d25';
+const API_KEY = API_CONFIG.openWeatherKey;
 
 // Add type definition for city objects
 interface CityObject {
@@ -74,7 +76,7 @@ interface CityObject {
 }
 
 // Google Places API Key
-const GOOGLE_PLACES_API_KEY = 'AIzaSyAJcSmb8jAEU5qVlzR3sTRcraWxb38B31w';
+const GOOGLE_PLACES_API_KEY = API_CONFIG.googlePlacesKey;
 
 const UserInfo = ({ navigation }: { navigation: any }) => {
   // State for form fields
@@ -121,6 +123,15 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
       return;
     }
     
+    if (DEMO_MODE) {
+      setPlacesResults(searchDemoCities(query).map((city, index) => ({
+        place_id: `demo-${index}`,
+        description: city,
+        structured_formatting: {main_text: city.split(',')[0], secondary_text: city.split(',')[1]?.trim()},
+      })));
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -201,6 +212,14 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
   
   // Handle place selection
   const handlePlaceSelected = async (placeId: string, description: string) => {
+    if (DEMO_MODE) {
+      setManualLocation(description);
+      setSearchQuery('');
+      setShowCitySuggestions(false);
+      Keyboard.dismiss();
+      return;
+    }
+
     try {
       setShowCitySuggestions(false); // Hide suggestions when a place is selected
       
@@ -270,6 +289,10 @@ const UserInfo = ({ navigation }: { navigation: any }) => {
 
   // Reverse geocode coordinates to city name
   const reverseGeocode = async (latitude: number, longitude: number) => {
+    if (DEMO_MODE) {
+      return {key: 'demo-islamabad-pk', display: 'Islamabad, PK'};
+    }
+
     try {
       // Use OpenWeather's reverse geocoding API
       const response = await fetch(

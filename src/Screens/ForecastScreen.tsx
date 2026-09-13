@@ -35,6 +35,8 @@ import { validateRainProbability } from '../services/weatherService';
 import { useDeviceMeta } from '../Notifications/Location';
 import NativeAdComponent from '../components/NativeAdComponent';
 import { useAdMob } from '../contexts/AdContext';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
+import {searchDemoCities} from '../data/demoWeather';
 
 type ForecastScreenProps = {
   navigation: StackNavigationProp<any>;
@@ -46,7 +48,7 @@ const SAVED_CITIES_KEY = 'skylar_saved_cities';
 interface CityObject { key: string; display: string; isDefault?: boolean; }
 
 // Google Places API Key
-const GOOGLE_PLACES_API_KEY = 'AIzaSyAJcSmb8jAEU5qVlzR3sTRcraWxb38B31w';
+const GOOGLE_PLACES_API_KEY = API_CONFIG.googlePlacesKey;
 
 type RouteParams = {
   openCityModal?: boolean;
@@ -503,6 +505,15 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
       return;
     }
     
+    if (DEMO_MODE) {
+      setPlacesResults(searchDemoCities(query).map((city, index) => ({
+        place_id: `demo-${index}`,
+        description: city,
+        structured_formatting: {main_text: city.split(',')[0], secondary_text: city.split(',')[1]?.trim()},
+      })));
+      return;
+    }
+
     try {
       setIsPlacesLoading(true);
       
@@ -572,6 +583,13 @@ const ForecastScreen = ({ navigation }: ForecastScreenProps) => {
   
   // Handle place selection
   const handlePlaceSelected = async (placeId: string, description: string) => {
+    if (DEMO_MODE) {
+      selectCity({key: `${placeId}-${Date.now()}`, display: description, isDefault: false});
+      setSearchQuery('');
+      setPlacesResults([]);
+      return;
+    }
+
     try {
       // Get detailed place information
       const response = await fetch(
@@ -1464,4 +1482,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ForecastScreen; 
+export default ForecastScreen;

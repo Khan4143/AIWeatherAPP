@@ -1,10 +1,9 @@
 import axios from 'axios';
 import { WeatherData } from './weatherService';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
 
 // Use the stable Firebase Functions HTTPS URL instead of a temporary ngrok tunnel
-const OPENAI_API_ENDPOINT = 'https://us-central1-ai-weather-app-f69fc.cloudfunctions.net/getChatResponse';
-
-const IS_DEVELOPMENT = false;
+const OPENAI_API_ENDPOINT = `${API_CONFIG.firebaseFunctionsBaseUrl}/getChatResponse`;
 
 export interface OpenAIResponse {
   text: string;
@@ -52,7 +51,7 @@ export const generateResponse = async (
       };
     }
 
-    if (IS_DEVELOPMENT) {
+    if (DEMO_MODE) {
       const isWeatherRelated = weatherKeywords.some(keyword => 
         userPrompt.toLowerCase().includes(keyword)
       );
@@ -126,7 +125,7 @@ const weatherKeywords = [
 
 
 export const isWeatherQuestion = async (query: string): Promise<boolean> => {
-  if (IS_DEVELOPMENT) {
+  if (DEMO_MODE) {
     const lowerQuery = query.toLowerCase();
     return weatherKeywords.some(keyword => lowerQuery.includes(keyword));
   }
@@ -163,4 +162,4 @@ export const isWeatherQuestion = async (query: string): Promise<boolean> => {
   } catch (error) {
     return true;
   }
-}; 
+};

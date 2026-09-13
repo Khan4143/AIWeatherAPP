@@ -1,6 +1,8 @@
 import { getApiKey } from '../utils/apiKeys';
 import { WeatherData, ForecastData } from './weatherService';
 import axios from 'axios';
+import {DEMO_MODE} from '../config/appConfig';
+import {generateResponse as generateDemoResponse} from './openaiService';
 
 const PRIMARY_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent';
 const FALLBACK_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
@@ -21,6 +23,10 @@ interface WeatherInfo {
 
 
 export const isWeatherQuestion = async (query: string): Promise<boolean> => {
+  if (DEMO_MODE) {
+    return true;
+  }
+
   let retries = 0;
   
   while (retries <= MAX_RETRIES) {
@@ -112,6 +118,10 @@ export const generateResponse = async (
   userPrompt: string,
   weatherInfo?: WeatherData
 ): Promise<GeminiResponse> => {
+  if (DEMO_MODE) {
+    return generateDemoResponse(userPrompt, weatherInfo);
+  }
+
   try {
     const API_KEY = getApiKey('gemini');
     if (!API_KEY) {
@@ -220,4 +230,4 @@ export const generateResponse = async (
       };
     }
   }
-}; 
+};

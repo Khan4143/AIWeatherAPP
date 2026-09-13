@@ -1,5 +1,7 @@
+import {API_CONFIG} from '../config/appConfig';
+
 const apiKeys = {
-  gemini: 'AIzaSyC7oZ4DJRG3KozdPuui4yBDuLu5fBjbatw',
+  gemini: API_CONFIG.geminiKey,
 };
 
 export const getApiKey = (keyName: keyof typeof apiKeys): string => {
@@ -15,4 +17,4 @@ export const hasApiKey = (keyName: keyof typeof apiKeys): boolean => {
     return false;
   }
   return hasKey;
-}; 
+};

@@ -10,6 +10,7 @@ import {
   TestIds,
 } from 'react-native-google-mobile-ads';
 import { getAdUnitId, isUsingRealAds, AD_CONFIG } from '../config/adConfig';
+import {DEMO_MODE} from '../config/appConfig';
 
 const adUnitId = getAdUnitId(__DEV__);
 
@@ -17,6 +18,10 @@ const NativeAdComponent = () => {
   const [nativeAd, setNativeAd] = useState<NativeAd>();
 
   useEffect(() => {
+    if (DEMO_MODE) {
+      return;
+    }
+
     NativeAd.createForAdRequest(adUnitId, {
       requestNonPersonalizedAdsOnly: true,
     })
@@ -41,7 +46,7 @@ const NativeAdComponent = () => {
     };
   }, [nativeAd]);
 
-  if (!nativeAd) {
+  if (DEMO_MODE || !nativeAd) {
     return null;
   }
 

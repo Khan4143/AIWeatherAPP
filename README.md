@@ -1,104 +1,103 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Skylar — AI Weather Planner
 
-# Getting Started
+Skylar is a React Native weather companion that combines forecasts with practical, personalized guidance. It includes current conditions, hourly and seven-day forecasts, an assistant, commute advice, event planning, preferences, and local reminders.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+This repository is preserved as a portfolio project. The original commercial API trials, model access, Firebase deployment, and advertising configuration are no longer assumed to be available. A built-in demo mode is enabled by default so the main experience remains presentable without paid services or private credentials.
 
-## Step 1: Start Metro
+## Features
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- Current conditions with temperature, humidity, wind, visibility, pressure, UV index, and precipitation probability
+- Hourly and seven-day forecast views
+- Weather-aware conversational assistant
+- Commute and clothing guidance
+- Event planning with local notification reminders
+- Saved cities, user profile, routines, preferences, and metric/imperial units
+- Offline portfolio demo data and deterministic assistant responses
+- Optional legacy Firebase Functions, FCM, OpenWeather, Google Places, Gemini, and AdMob integration points
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## Tech stack
 
-```sh
-# Using npm
-npm start
+- React Native 0.79 and React 19
+- TypeScript and React Navigation
+- AsyncStorage, Axios, and Fetch
+- Notifee and Firebase Cloud Messaging
+- Google Mobile Ads
+- Firebase Functions with Node.js
+- OpenWeather, Google Places/Geocoding, OpenAI, and Gemini legacy integrations
 
-# OR using Yarn
+## Demo mode
+
+Demo mode is controlled by `DEMO_MODE` in `src/config/appConfig.ts` and is `true` by default.
+
+While enabled, Skylar:
+
+- serves local sample current, hourly, and daily weather data;
+- provides offline city suggestions;
+- answers assistant questions with local weather-aware responses;
+- bypasses remote Firebase device registration and push-token calls;
+- skips AdMob initialization and native ad requests; and
+- starts with Islamabad sample weather available to the shared weather context.
+
+The original service interfaces remain intact, so screens and hooks do not need separate demo implementations. Sample dates and times remain current for natural-looking screenshots.
+
+## Requirements
+
+- Node.js 18 or newer
+- Yarn or npm
+- Android Studio and an Android emulator/device for Android development
+- macOS with Xcode and CocoaPods for iOS development
+
+Follow the official [React Native environment setup guide](https://reactnative.dev/docs/set-up-your-environment) before building the native app.
+
+## Setup
+
+```bash
+git clone <repository-url>
+cd AIWeatherAPP
+yarn install
 yarn start
 ```
 
-## Step 2: Build and run your app
+In a second terminal, run Android:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
+```bash
 yarn android
 ```
 
-### iOS
+On macOS, install pods and run iOS:
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+```bash
+cd ios
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
+cd ..
 yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+No API keys are required in demo mode. Complete the short onboarding flow or open the main application through its navigation route to capture populated forecast and assistant screens.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Optional live integrations
 
-## Step 3: Modify your app
+`.env.example` documents the credentials used by the historical integrations. Copy it to `.env` only for local development and use newly issued, restricted credentials. Never commit `.env`, signing keys, service-account files, or production ad identifiers.
 
-Now that you have successfully run the app, let's make changes!
+The React Native client deliberately keeps empty live placeholders in `src/config/appConfig.ts`; this avoids implying that Metro automatically loads `.env` files. If live mode is restored, connect those values using a maintained React Native environment solution or native build configuration, then set `DEMO_MODE` to `false`.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Firebase Functions read `OPENAI_API_KEY` and `OPENWEATHER_API_KEY` from their runtime environment. Deploying them also requires a Firebase project, Firestore, FCM, billing where applicable, and an updated functions base URL.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Legacy API status
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+The app was originally built around paid or trial services. Their previous keys and account configuration have been removed from active source, and the old deployment should be considered unavailable. In particular, OpenWeather One Call 3.0, hosted OpenAI requests, Gemini models, Google Places, FCM, and production AdMob behavior may require renewed accounts, billing, API enablement, and model-version updates.
 
-## API Keys Setup
+## Useful commands
 
-1. Navigate to the `functions` directory
-2. Copy `apikey.template.js` to `apikey.js`
-3. Open `apikey.js` and replace the placeholder values with your actual API keys
-4. Never commit `apikey.js` to version control - it's already in `.gitignore`
+```bash
+yarn start       # Start Metro
+yarn android     # Build and launch Android
+yarn ios         # Build and launch iOS (macOS only)
+yarn test        # Run Jest tests
+yarn lint        # Run ESLint
+```
 
-## Congratulations! :tada:
+## Security note
 
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Credentials previously committed to a Git repository remain in its history even after removal from the current tree. Any formerly exposed keys should be revoked or restricted. This cleanup intentionally does not rewrite Git history.

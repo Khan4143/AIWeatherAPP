@@ -23,9 +23,10 @@ import { useNotification, requestNotificationPermission } from '../Notifications
 import { useDeviceMeta } from '../Notifications/Location';
 import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid } from 'react-native';
+import {API_CONFIG, DEMO_MODE} from '../config/appConfig';
 
 // Google Places API Key
-const GOOGLE_PLACES_API_KEY = 'AIzaSyAJcSmb8jAEU5qVlzR3sTRcraWxb38B31w';
+const GOOGLE_PLACES_API_KEY = API_CONFIG.googlePlacesKey;
 
 const OnboardingScreen = ({ navigation }: { navigation: any }) => {
   useNotification(); 
@@ -33,6 +34,10 @@ const OnboardingScreen = ({ navigation }: { navigation: any }) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const requestLocationPermission = async () => {
+    if (DEMO_MODE) {
+      return true;
+    }
+
     if (Platform.OS === 'ios') {
       return await Geolocation.requestAuthorization('whenInUse');
     }
@@ -58,6 +63,10 @@ const OnboardingScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const getCurrentLocation = () => {
+    if (DEMO_MODE) {
+      return Promise.resolve({latitude: 33.6844, longitude: 73.0479, cityDisplay: 'Islamabad, PK'});
+    }
+
     return new Promise<{latitude: number, longitude: number, cityDisplay: string}>((resolve, reject) => {
       Geolocation.getCurrentPosition(
         async (position) => {
