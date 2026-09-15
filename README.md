@@ -15,6 +15,14 @@ This repository is preserved as a portfolio project. The original commercial API
 - Offline portfolio demo data and deterministic assistant responses
 - Optional legacy Firebase Functions, FCM, OpenWeather, Google Places, Gemini, and AdMob integration points
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Splash Screen](screenshots/01-splash.jpg)<br />**Splash Screen** | ![Home & Forecast Screen](screenshots/02-weather-home-forecast.jpg)<br />**Home & Forecast Screen** — shows daily weather, 5-day selection slider, 24-hour forecast for the selected day, and weather details |
+| ![Weather Assistant](screenshots/03-weather-assistant.jpg)<br />**Weather Assistant** — gives clothing, safety, and AI-generated weather suggestions based on user preferences | ![Event Planner](screenshots/04-event-planner.jpg)<br />**Event Planner** — lets users plan events by date/time and receive alerts if weather changes |
+| ![Commute AI Chat](screenshots/05-commute-ai-chat.jpg)<br />**Commute AI Chat** — allows users to chat with AI about travel and weather-related commute decisions | ![Profile Screen](screenshots/06-profile.jpg)<br />**Profile Screen** |
+
 ## Tech stack
 
 - React Native 0.79 and React 19
